@@ -2,11 +2,26 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -23,21 +38,13 @@ export function LoginForm() {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate login authentication
+    // Temporarily allow any email and password to log in
     setTimeout(() => {
-      if (email === "admin@crm.com" && password === "password") {
-        toast({
-          title: "Login bem-sucedido",
-          description: "Bem-vindo ao CRM Acesso Oftalmologia",
-        });
-        navigate("/dashboard");
-      } else {
-        toast({
-          title: "Erro de autenticação",
-          description: "E-mail ou senha incorretos",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Login bem-sucedido",
+        description: "Bem-vindo ao CRM Acesso Oftalmologia",
+      });
+      navigate("/dashboard");
       setIsLoading(false);
     }, 1500);
   };
@@ -155,3 +162,5 @@ export function LoginForm() {
     </Card>
   );
 }
+
+export default LoginForm;
