@@ -1,4 +1,3 @@
-// src/components/pacientes/paciente-detail-modal.tsx
 import { useState, useEffect, useRef } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
@@ -133,31 +132,51 @@ const WhatsappChat = ({ paciente, apiConfig, isActiveTab }: { paciente: Paciente
 
   // --- Fetch Chat History ---
   const fetchChatHistory = async (showLoadingToast = false) => {
-      if (!patientJid || !apiConfig || !apiConfig.apiUrl || !apiConfig.apiKey || !apiConfig.apiInstance) {
-          setHistoryError("Configuração da API ou número do paciente inválido.");
+      if (!patientJid) {
+          setHistoryError("Número de telefone do paciente inválido ou não formatado corretamente para JID.");
+          console.error("Fetch History Aborted: Invalid JID", paciente?.telefone);
           return;
       }
+      if (!apiConfig || !apiConfig.apiUrl || !apiConfig.apiKey || !apiConfig.apiInstance) {
+          setHistoryError("Configuração da API incompleta.");
+          console.error("Fetch History Aborted: Incomplete API Config", apiConfig);
+          return;
+      }
+
       setIsLoadingHistory(true);
       setHistoryError(null);
       if (showLoadingToast) {
           toast({ title: "Buscando histórico..." });
       }
-      const historyUrl = `${apiConfig.apiUrl}/chat/findMessages/${apiConfig.apiInstance}`;
+
+      // *** IMPORTANT: Verify this endpoint path with your Evolution API documentation ***
+      const endpointPath = "/chat/findMessages"; // <-- CHECK THIS PATH
+      // *******************************************************************************
+
+      const historyUrl = `${apiConfig.apiUrl}${endpointPath}/${apiConfig.apiInstance}`;
       const params = new URLSearchParams({
           jid: patientJid,
           // limit: '50', // Optional: Add pagination later if needed
       });
+      const fullUrl = `${historyUrl}?${params.toString()}`;
+
+      console.log(`Fetching history from: ${fullUrl}`); // Log the exact URL
+      console.log(`Using JID: ${patientJid}`); // Log the JID
 
       try {
-          console.log(`Fetching history from: ${historyUrl}?${params.toString()}`);
-          const response = await fetch(`${historyUrl}?${params.toString()}`, {
+          const response = await fetch(fullUrl, {
               method: 'GET',
               headers: { 'apikey': apiConfig.apiKey }
           });
           const responseData = await response.json();
+          console.log("History Response Status:", response.status);
           console.log("History Response Data:", responseData);
 
           if (!response.ok) {
+              // Provide more context for 404
+              if (response.status === 404) {
+                  throw new Error(`Erro 404: Endpoint não encontrado (${endpointPath}). Verifique o caminho do endpoint na configuração ou documentação da API.`);
+              }
               throw new Error(responseData?.message || responseData?.error?.message || `Erro ${response.status}`);
           }
 
@@ -173,7 +192,11 @@ const WhatsappChat = ({ paciente, apiConfig, isActiveTab }: { paciente: Paciente
           messagesArray.sort((a, b) => (a.messageTimestamp || 0) - (b.messageTimestamp || 0));
 
           setChatMessages(messagesArray as WhatsappMessage[]);
-          toast({ title: "Histórico carregado." });
+          if (messagesArray.length > 0) {
+            toast({ title: "Histórico carregado." });
+          } else {
+            toast({ title: "Histórico Vazio", description: "Nenhuma mensagem encontrada." });
+          }
 
       } catch (error: any) {
           console.error("Error fetching chat history:", error);
@@ -188,7 +211,12 @@ const WhatsappChat = ({ paciente, apiConfig, isActiveTab }: { paciente: Paciente
   // --- Scroll to Bottom ---
   useEffect(() => {
       if (chatAreaRef.current) {
-          chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+          // Use setTimeout to ensure scrolling happens after rendering updates
+          setTimeout(() => {
+              if (chatAreaRef.current) {
+                 chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+              }
+          }, 0);
       }
   }, [chatMessages]); // Scroll when messages update
   // --- End Scroll to Bottom ---
@@ -199,12 +227,13 @@ const WhatsappChat = ({ paciente, apiConfig, isActiveTab }: { paciente: Paciente
           console.log(`WhatsApp tab active for ${paciente.id}. Fetching history.`);
           fetchChatHistory(true); // Show loading toast when tab becomes active
       } else {
-          // Optionally clear messages when tab is inactive or patient is null
-          // setChatMessages([]);
-          // setHistoryError(null);
+          // Clear messages and error when tab is inactive or patient is null
+          setChatMessages([]);
+          setHistoryError(null);
+          setIsLoadingHistory(false); // Ensure loading state is reset
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActiveTab, paciente?.id, apiConfig]); // Depend on isActiveTab and patient ID
+  }, [isActiveTab, paciente?.id]); // Re-run ONLY when tab or patient changes
 
   // --- Send Message Logic ---
   const handleSendMessage = async () => {
@@ -237,7 +266,7 @@ const WhatsappChat = ({ paciente, apiConfig, isActiveTab }: { paciente: Paciente
         toast({ title: "Mensagem Enviada!", description: `Para: ${paciente?.telefone}` });
         setMessage("");
         // Optionally: Re-fetch history after sending to see the new message
-        // setTimeout(() => fetchChatHistory(), 1500); // Delay slightly
+        setTimeout(() => fetchChatHistory(), 1500); // Delay slightly
     } catch (error: any) {
         console.error("Error sending message:", error);
         toast({ variant: "destructive", title: "Erro ao Enviar", description: error.message || "Não foi possível enviar a mensagem." });
@@ -266,7 +295,7 @@ const WhatsappChat = ({ paciente, apiConfig, isActiveTab }: { paciente: Paciente
           if (!response.ok) throw new Error(responseData?.message || responseData?.error?.message || `Erro ${response.status}`);
           toast({ title: `${capitalize(type)} Enviado!`, description: `Para: ${paciente?.telefone}` });
           // Optionally re-fetch history
-          // setTimeout(() => fetchChatHistory(), 1500);
+          setTimeout(() => fetchChatHistory(), 1500);
       } catch (error: any) {
           console.error(`Error sending ${type}:`, error);
           toast({ variant: "destructive", title: `Erro ao Enviar ${capitalize(type)}`, description: error.message || `Não foi possível enviar o ${type}.` });
@@ -350,24 +379,27 @@ const WhatsappChat = ({ paciente, apiConfig, isActiveTab }: { paciente: Paciente
 
   // --- Render Message Content ---
   const renderMessageContent = (msg: WhatsappMessage) => {
-      if (msg.message?.conversation) {
-          return <p className="text-sm">{msg.message.conversation}</p>;
+      // Basic text messages
+      const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+      if (text) {
+          return <p className="text-sm whitespace-pre-wrap break-words">{text}</p>; // Allow line breaks
       }
-      if (msg.message?.extendedTextMessage?.text) {
-          return <p className="text-sm">{msg.message.extendedTextMessage.text}</p>;
-      }
+      // Media messages with captions
       if (msg.message?.imageMessage) {
-          return <p className="text-sm italic">[Imagem]{msg.message.imageMessage.caption ? ` ${msg.message.imageMessage.caption}` : ''}</p>;
+          return <p className="text-sm italic">[Imagem]{msg.message.imageMessage.caption ? `: ${msg.message.imageMessage.caption}` : ''}</p>;
       }
       if (msg.message?.videoMessage) {
-          return <p className="text-sm italic">[Vídeo]{msg.message.videoMessage.caption ? ` ${msg.message.videoMessage.caption}` : ''}</p>;
+          return <p className="text-sm italic">[Vídeo]{msg.message.videoMessage.caption ? `: ${msg.message.videoMessage.caption}` : ''}</p>;
       }
+      // Other media/document messages
       if (msg.message?.audioMessage) {
           return <p className="text-sm italic">[Áudio]</p>;
       }
       if (msg.message?.documentMessage) {
           return <p className="text-sm italic">[Documento: {msg.message.documentMessage.title || 'arquivo'}]</p>;
       }
+      // Fallback for unknown types
+      console.log("Unsupported message type:", msg.message);
       return <p className="text-sm italic">[Tipo de mensagem não suportado]</p>;
   };
   // --- End Render Message Content ---
@@ -381,21 +413,21 @@ const WhatsappChat = ({ paciente, apiConfig, isActiveTab }: { paciente: Paciente
       <input type="file" ref={documentInputRef} onChange={(e) => handleFileChange(e, 'document')} accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" style={{ display: 'none' }} />
 
       {/* Chat Header */}
-      <div className="px-1 pb-2 border-b mb-3 flex justify-between items-center">
+      <div className="px-1 pb-2 border-b mb-3 flex justify-between items-center shrink-0">
           <div>
               <h3 className="text-lg font-medium">Chat WhatsApp</h3>
               <p className="text-sm text-muted-foreground">{paciente?.nome}</p>
               <p className="text-xs text-muted-foreground">
-                  Número: {paciente?.telefone || "Não informado"} {patientJid ? `(${patientJid.split('@')[0]})` : ''}
+                  Número: {paciente?.telefone || "Não informado"} {patientJid ? `(${patientJid.split('@')[0]})` : '(Inválido)'}
               </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => fetchChatHistory(true)} disabled={isLoadingHistory} title="Atualizar Histórico">
+          <Button variant="ghost" size="icon" onClick={() => fetchChatHistory(true)} disabled={isLoadingHistory || !patientJid} title="Atualizar Histórico">
               <RefreshCw className={cn("h-4 w-4", isLoadingHistory && "animate-spin")} />
           </Button>
       </div>
 
       {/* Message Area */}
-      <ScrollArea className="flex-1 mb-4 px-4 py-2 bg-muted/20 rounded-md" ref={chatAreaRef}>
+      <ScrollArea className="flex-1 mb-4 px-4 py-2 bg-muted/20 rounded-md min-h-0" ref={chatAreaRef}>
         <div className="space-y-4">
           {isLoadingHistory && (
               <div className="text-center text-muted-foreground py-10">
@@ -415,18 +447,20 @@ const WhatsappChat = ({ paciente, apiConfig, isActiveTab }: { paciente: Paciente
           {!isLoadingHistory && !historyError && chatMessages.map((msg) => (
             <div key={msg.key.id} className={cn("flex", msg.key.fromMe ? "justify-end" : "justify-start")}>
               <div className={cn(
-                  "rounded-lg p-3 max-w-[75%] shadow-sm",
+                  "rounded-lg py-2 px-3 max-w-[75%] shadow-sm text-left", // Ensure text aligns left
                   msg.key.fromMe ? "bg-primary/90 text-primary-foreground" : "bg-background border"
               )}>
-                {msg.key.fromMe && <p className="text-sm font-medium mb-1">{consultantName}</p>}
+                {/* Removed consultant name for brevity, add back if needed */}
+                {/* {msg.key.fromMe && <p className="text-sm font-medium mb-1">{consultantName}</p>} */}
                 {renderMessageContent(msg)}
                 <div className={cn("text-xs mt-1 flex items-center gap-1", msg.key.fromMe ? "text-primary-foreground/80 justify-end" : "text-muted-foreground justify-end")}>
                     <span>{safeFormatDate(msg.messageTimestamp, "HH:mm")}</span>
-                    {msg.key.fromMe && msg.ack !== undefined && msg.ack >= 0 && (
-                        <Check className={cn("h-3 w-3", msg.ack >= 3 ? "text-blue-400" : msg.ack >= 2 ? "" : "opacity-50")} />
+                    {/* Improved Read Receipt Logic */}
+                    {msg.key.fromMe && msg.ack !== undefined && msg.ack >= 1 && ( // Show single check if sent (ack >= 1)
+                        <Check className={cn("h-3.5 w-3.5", msg.ack >= 2 ? "" : "opacity-60")} /> // Dim if only sent, not delivered
                     )}
-                     {msg.key.fromMe && msg.ack !== undefined && msg.ack >= 3 && ( // Double check for read status
-                        <Check className="h-3 w-3 -ml-2 text-blue-400" />
+                     {msg.key.fromMe && msg.ack !== undefined && msg.ack >= 3 && ( // Show second check if read (ack >= 3)
+                        <Check className="h-3.5 w-3.5 -ml-2.5 text-blue-400" /> // Blue for read
                     )}
                 </div>
               </div>
@@ -436,7 +470,7 @@ const WhatsappChat = ({ paciente, apiConfig, isActiveTab }: { paciente: Paciente
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="flex items-center gap-2 border-t pt-4 px-1">
+      <div className="flex items-center gap-2 border-t pt-4 px-1 shrink-0">
          {/* Attachment Button */}
          <Popover>
             <PopoverTrigger asChild>
@@ -514,6 +548,7 @@ export function PacienteDetailModal({
   const [paciente, setPaciente] = useState<PacienteData | null>(initialPaciente);
   const { toast } = useToast();
 
+  // Log API config when modal opens or config changes
   useEffect(() => {
       console.log(`[PacienteDetailModal for ${initialPaciente?.id}] Received apiConfig prop:`, apiConfig);
   }, [apiConfig, initialPaciente?.id]);
@@ -521,15 +556,17 @@ export function PacienteDetailModal({
 
   const availableDoctors = paciente ? (hospitalsData[paciente.hospital] || []) : [];
 
+  // Update local paciente state when initialPaciente changes or modal opens
   useEffect(() => {
-    setPaciente(initialPaciente);
+    setPaciente(initialPaciente); // Update local state with the potentially new patient
     if (open) {
         setActiveTab("contato"); // Reset to contact tab when opening
     }
     // Reset doctor if hospital changes or doctor is invalid for the hospital
     if (initialPaciente && (!hospitalsData[initialPaciente.hospital] || !hospitalsData[initialPaciente.hospital]?.includes(initialPaciente.medico))) {
         const firstDoctor = hospitalsData[initialPaciente.hospital]?.[0] || "";
-        setPaciente(prev => prev ? ({ ...prev, medico: firstDoctor }) : null);
+        // Update the state based on initialPaciente, not the potentially stale 'paciente' state
+        setPaciente(currentInitial => currentInitial ? ({ ...currentInitial, medico: firstDoctor }) : null);
     }
   }, [initialPaciente, open]);
 
@@ -615,7 +652,8 @@ export function PacienteDetailModal({
   const addProcedimento = () => { toast({ title: "Adicionar Procedimento", description: "Funcionalidade pendente." }); };
   const handleSaveChanges = () => { toast({ title: "Salvar Alterações", description: "Funcionalidade pendente." }); };
 
-  if (!paciente) {
+  // Show loading state if paciente data is not yet available (e.g., during initial load)
+  if (!paciente && open) { // Check open flag too, otherwise it shows briefly on close
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -625,6 +663,11 @@ export function PacienteDetailModal({
         </Dialog>
     );
   }
+  // Return null if modal is closed or paciente is truly null after initial check
+  if (!open || !paciente) {
+      return null;
+  }
+
 
   const formattedNascimento = safeFormatDate(paciente.dataNascimento, "yyyy-MM-dd");
   // Assuming marketingData might have these fields, format safely
@@ -634,8 +677,9 @@ export function PacienteDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col"> {/* Use flex-col */}
-        <DialogHeader>
+      {/* Adjusted DialogContent for flex layout */}
+      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-0 shrink-0"> {/* Header takes fixed space */}
           <div className="flex justify-between items-center">
             <DialogTitle className="text-xl">{paciente.nome}</DialogTitle>
             <div className="flex gap-2">
@@ -645,7 +689,8 @@ export function PacienteDetailModal({
           </div>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0"> {/* Allow tabs to take remaining space */}
+        {/* Tabs container takes remaining space */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0 overflow-hidden px-6 pb-6">
           <TabsList className="grid grid-cols-4 mb-4 shrink-0"> {/* Prevent list from shrinking */}
             <TabsTrigger value="contato">Contato</TabsTrigger>
             <TabsTrigger value="procedimentos">Procedimentos</TabsTrigger>
@@ -654,7 +699,7 @@ export function PacienteDetailModal({
           </TabsList>
 
           {/* Contact Tab */}
-          <TabsContent value="contato" className="space-y-6 flex-1 overflow-y-auto"> {/* Make content scrollable */}
+          <TabsContent value="contato" className="space-y-6 flex-1 overflow-y-auto mt-0"> {/* Make content scrollable */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Dados Pessoais */}
               <div className="space-y-4 border-r md:pr-6">
@@ -686,14 +731,15 @@ export function PacienteDetailModal({
           </TabsContent>
 
           {/* Procedures Tab */}
-          <TabsContent value="procedimentos" className="space-y-4 flex-1 overflow-y-auto"> {/* Make content scrollable */}
+          <TabsContent value="procedimentos" className="space-y-4 flex-1 overflow-y-auto mt-0"> {/* Make content scrollable */}
              <div className="flex justify-between items-center"><h3 className="text-lg font-medium">Procedimentos</h3><Button onClick={addProcedimento} size="sm"><Plus className="h-4 w-4 mr-1" />Adicionar</Button></div>
              {paciente.procedimentos.length === 0 ? (<div className="text-center py-8 text-muted-foreground">Nenhum procedimento.</div>)
              : (<div className="space-y-6">{paciente.procedimentos.map((procedimento, index) => { const formattedProcDate = safeFormatDate(procedimento.data, "yyyy-MM-dd"); return (<div key={procedimento.id} className="border rounded-lg p-4 relative"><div className="absolute top-2 right-2">{procedimento.status === "ganho" && (<Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">Ganho</Badge>)}{procedimento.status === "perdido" && (<Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">Perdido</Badge>)}{procedimento.status === "pendente" && (<Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">Pendente</Badge>)}</div><div className="flex justify-between items-start mb-3 mr-20"><h4 className="font-medium">{procedimento.tipo}</h4>{procedimento.status === "pendente" && (<div className="flex space-x-2"><Button variant="outline" size="sm" className="bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 border-green-200" onClick={() => handleStatusChange(procedimento.id, "ganho")}> <Check className="h-4 w-4 mr-1" /> Ganho </Button><Button variant="outline" size="sm" className="bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border-red-200" onClick={() => handleStatusChange(procedimento.id, "perdido")}> <X className="h-4 w-4 mr-1" /> Perdido </Button></div>)}</div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="space-y-3"><div className="space-y-2"><Label htmlFor={`procedimento-${index}`}>Procedimento Específico</Label><Input id={`procedimento-${index}`} value={procedimento.procedimento || ''} onChange={(e) => handleProcedureInputChange(index, 'procedimento', e.target.value)} disabled={procedimento.status !== 'pendente'}/></div><div className="space-y-2"><Label htmlFor={`hospital-proc-${index}`}>Hospital</Label><Input id={`hospital-proc-${index}`} value={procedimento.hospital || ''} readOnly className="bg-muted/50"/></div><div className="space-y-2"><Label htmlFor={`medico-${index}`}>Médico</Label><Input id={`medico-${index}`} value={procedimento.medico || ''} onChange={(e) => handleProcedureInputChange(index, 'medico', e.target.value)} disabled={procedimento.status !== 'pendente'}/></div><div className="space-y-2"><Label htmlFor={`tipo-${index}`}>Tipo (Automático)</Label><Input id={`tipo-${index}`} value={procedimento.tipo || ''} readOnly className="bg-muted/50"/></div></div><div className="space-y-3"><div className="space-y-2"><Label htmlFor={`valor-${index}`}>Valor</Label><Input id={`valor-${index}`} type="number" value={procedimento.valor || 0} onChange={(e) => handleProcedureInputChange(index, 'valor', e.target.value)} disabled={procedimento.status !== 'pendente'}/></div><div className="space-y-2"><Label htmlFor={`data-${index}`}>Data de realização</Label><Input id={`data-${index}`} type="date" value={formattedProcDate} onChange={(e) => handleProcedureInputChange(index, 'data', e.target.value)} disabled={procedimento.status !== 'pendente'}/></div><div className="space-y-2"><Label htmlFor={`convenio-${index}`}>Convênio</Label><Input id={`convenio-${index}`} value={procedimento.convenio || ''} onChange={(e) => handleProcedureInputChange(index, 'convenio', e.target.value)} disabled={procedimento.status !== 'pendente'}/></div><div className="space-y-2"><Label htmlFor={`observacao-${index}`}>Observação</Label><Textarea id={`observacao-${index}`} value={procedimento.observacao || ''} onChange={(e) => handleProcedureInputChange(index, 'observacao', e.target.value)} className="h-[72px]" disabled={procedimento.status !== 'pendente'}/></div></div></div></div>);})}</div>)}
           </TabsContent>
 
           {/* WhatsApp Tab */}
-          <TabsContent value="whatsapp" className="space-y-4 flex-1 min-h-0"> {/* Allow chat to take space */}
+          {/* Ensure this content area allows the inner chat component to manage its own height */}
+          <TabsContent value="whatsapp" className="flex-1 flex flex-col min-h-0 mt-0">
              <WhatsappChat
                 paciente={paciente}
                 apiConfig={apiConfig || null}
@@ -702,11 +748,11 @@ export function PacienteDetailModal({
           </TabsContent>
 
           {/* History Tab */}
-          <TabsContent value="historico" className="space-y-4 flex-1 overflow-y-auto"> {/* Make content scrollable */}
+          <TabsContent value="historico" className="space-y-4 flex-1 overflow-y-auto mt-0"> {/* Make content scrollable */}
              <div>
                <h3 className="text-lg font-medium">Histórico</h3>
                {paciente.historico.length === 0 ? (<div className="text-center py-8 text-muted-foreground">Nenhum registro.</div>)
-               : (<ScrollArea className="h-[60vh] pr-4"><div className="space-y-3">{paciente.historico.map((item) => (<div key={item.id} className="border rounded-lg p-3"><div className="flex items-start"><div className="mt-0.5 mr-3">{item.tipo === "Ligação" && <PhoneCall className="h-4 w-4 text-blue-500" />}{item.tipo === "Status" && <FileText className="h-4 w-4 text-green-500" />}{item.tipo === "Procedimento" && <CalendarClock className="h-4 w-4 text-purple-500" />}{item.tipo === "Criação" && <Plus className="h-4 w-4 text-indigo-500" />}{item.tipo === "Acompanhamento" && <Clock className="h-4 w-4 text-amber-500" />}{item.tipo === "Alteração" && <Building className="h-4 w-4 text-orange-500" />}</div><div className="flex-1"><div className="flex justify-between"><h4 className="font-medium text-sm">{item.tipo}</h4><span className="text-xs text-muted-foreground">{safeFormatDate(item.data, "dd/MM/yyyy HH:mm")}</span></div><p className="text-sm mt-1">{item.descricao}</p><span className="text-xs text-muted-foreground mt-1">{item.usuario}</span></div></div></div>))}</div></ScrollArea>)}
+               : (<ScrollArea className="h-[calc(80vh-10rem)] pr-4"><div className="space-y-3">{paciente.historico.map((item) => (<div key={item.id} className="border rounded-lg p-3"><div className="flex items-start"><div className="mt-0.5 mr-3">{item.tipo === "Ligação" && <PhoneCall className="h-4 w-4 text-blue-500" />}{item.tipo === "Status" && <FileText className="h-4 w-4 text-green-500" />}{item.tipo === "Procedimento" && <CalendarClock className="h-4 w-4 text-purple-500" />}{item.tipo === "Criação" && <Plus className="h-4 w-4 text-indigo-500" />}{item.tipo === "Acompanhamento" && <Clock className="h-4 w-4 text-amber-500" />}{item.tipo === "Alteração" && <Building className="h-4 w-4 text-orange-500" />}</div><div className="flex-1"><div className="flex justify-between"><h4 className="font-medium text-sm">{item.tipo}</h4><span className="text-xs text-muted-foreground">{safeFormatDate(item.data, "dd/MM/yyyy HH:mm")}</span></div><p className="text-sm mt-1">{item.descricao}</p><span className="text-xs text-muted-foreground mt-1">{item.usuario}</span></div></div></div>))}</div></ScrollArea>)}
              </div>
           </TabsContent>
         </Tabs>
