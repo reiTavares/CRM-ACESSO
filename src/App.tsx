@@ -21,9 +21,7 @@ const App = () => (
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/pacientes" element={<Pacientes />} />
-          <Route path="/atividades" element={<Dashboard />} />
-          <Route path="/produtos" element={<Dashboard />} />
-          <Route path="/parceiros" element={<Dashboard />} />
+          {/* Removed /atividades, /produtos, /parceiros routes */}
           <Route path="/configuracoes" element={<Configuracoes />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

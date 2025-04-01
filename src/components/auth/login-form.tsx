@@ -28,7 +28,7 @@ export function LoginForm() {
       if (email === "admin@crm.com" && password === "password") {
         toast({
           title: "Login bem-sucedido",
-          description: "Bem-vindo ao CRM Médico",
+          description: "Bem-vindo ao CRM Acesso Oftalmologia",
         });
         navigate("/dashboard");
       } else {
@@ -62,9 +62,14 @@ export function LoginForm() {
 
   return (
     <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold text-center">CRM Médico</CardTitle>
-        <CardDescription className="text-center">
+      <CardHeader className="space-y-2 text-center">
+        <img 
+          src="https://comercial.acessooftalmologia.com.br/storage/u6fzUpkGUZmHIr7udopIxQAJdtV0N6FE98IVs5tV.png" 
+          alt="CRM Acesso Oftalmologia Logo" 
+          className="w-32 h-auto mx-auto mb-2" 
+        />
+        <CardTitle className="text-2xl font-bold">CRM Acesso Oftalmologia</CardTitle>
+        <CardDescription>
           Entre com suas credenciais para acessar o sistema
         </CardDescription>
       </CardHeader>

@@ -1,16 +1,14 @@
 import React, { ReactNode, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
-  Activity, 
   ChevronLeft, 
-  ClipboardList, 
   Home, 
   LogOut, 
   Menu, 
   Settings, 
-  ShoppingBag, 
   Users, 
-  HandshakeIcon 
+  PanelLeftClose, // Icon for collapse
+  PanelRightClose // Icon for expand
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -31,7 +29,8 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  // The SidebarProvider manages the state (open/collapsed) via context
+  const [collapsed, setCollapsed] = useState(false); 
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -49,73 +48,83 @@ export function AppShell({ children }: AppShellProps) {
   };
 
   return (
-    <SidebarProvider>
+    // Pass the state setter to the provider if needed, or let context handle it
+    <SidebarProvider> 
       <div className="h-screen flex overflow-hidden bg-background">
-        <Sidebar className="border-r h-screen">
-          <SidebarHeader className="h-14 flex items-center px-4">
-            <div className={cn("flex items-center space-x-2", collapsed && "justify-center")}>
-              <span className={cn("font-bold text-lg", collapsed && "hidden")}>CRM Médico</span>
-            </div>
-            <div className="ml-auto">
-              <Button variant="ghost" size="icon" onClick={() => setCollapsed(!collapsed)}>
-                <ChevronLeft className={cn("h-4 w-4", collapsed && "rotate-180")} />
-              </Button>
+        {/* Add collapsible="icon" prop here */}
+        <Sidebar className="border-r h-screen" collapsible="icon"> 
+          <SidebarHeader className="h-14 flex items-center justify-center px-2"> {/* Center logo */}
+            <div className={cn("flex items-center justify-center")}>
+              <img 
+                src="https://comercial.acessooftalmologia.com.br/storage/u6fzUpkGUZmHIr7udopIxQAJdtV0N6FE98IVs5tV.png" 
+                alt="CRM Acesso Oftalmologia Logo" 
+                className={cn("h-8 w-auto transition-all")} 
+              />
             </div>
           </SidebarHeader>
+          
           <SidebarContent>
             <SidebarMenu>
+              {/* Collapse/Expand Button */}
+              <SidebarMenuItem>
+                 <SidebarMenuButton 
+                   variant="ghost" 
+                   onClick={() => setCollapsed(!collapsed)} // Toggle state here
+                   className="w-full justify-center md:justify-start" 
+                   tooltip={collapsed ? "Expandir menu" : "Recolher menu"}
+                 >
+                   {/* Use context state to determine icon */}
+                   {collapsed ? <PanelRightClose className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+                   {/* Span text should hide automatically via component CSS */}
+                   <span>{collapsed ? "" : "Recolher"}</span> 
+                 </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Separator */}
+              <div className="px-2 my-1">
+                <hr className="border-sidebar-border" />
+              </div>
+
+              {/* Actual Menu Items */}
               <SidebarMenuItem className={cn(isActive("/dashboard") && "bg-accent")}>
-                <SidebarMenuButton onClick={() => navigate("/dashboard")}>
+                <SidebarMenuButton onClick={() => navigate("/dashboard")} tooltip="Dashboard">
                   <Home className="h-5 w-5" />
+                  {/* Span text should hide automatically via component CSS */}
                   <span>Dashboard</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem className={cn(isActive("/pacientes") && "bg-accent")}>
-                <SidebarMenuButton onClick={() => navigate("/pacientes")}>
+                <SidebarMenuButton onClick={() => navigate("/pacientes")} tooltip="Pacientes">
                   <Users className="h-5 w-5" />
+                   {/* Span text should hide automatically via component CSS */}
                   <span>Pacientes</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem className={cn(isActive("/atividades") && "bg-accent")}>
-                <SidebarMenuButton onClick={() => navigate("/atividades")}>
-                  <Activity className="h-5 w-5" />
-                  <span>Atividades</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem className={cn(isActive("/produtos") && "bg-accent")}>
-                <SidebarMenuButton onClick={() => navigate("/produtos")}>
-                  <ShoppingBag className="h-5 w-5" />
-                  <span>Produtos e Serviços</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem className={cn(isActive("/parceiros") && "bg-accent")}>
-                <SidebarMenuButton onClick={() => navigate("/parceiros")}>
-                  <HandshakeIcon className="h-5 w-5" />
-                  <span>Parceiros</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
               <SidebarMenuItem className={cn(isActive("/configuracoes") && "bg-accent")}>
-                <SidebarMenuButton onClick={() => navigate("/configuracoes")}>
+                <SidebarMenuButton onClick={() => navigate("/configuracoes")} tooltip="Configurações">
                   <Settings className="h-5 w-5" />
+                   {/* Span text should hide automatically via component CSS */}
                   <span>Configurações</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="px-3 py-2">
-            <Button variant="outline" className="w-full justify-start" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sair</span>
-            </Button>
+             <SidebarMenuButton variant="ghost" onClick={handleLogout} tooltip="Sair">
+               <LogOut className="mr-2 h-4 w-4" />
+                {/* Span text should hide automatically via component CSS */}
+               <span>Sair</span>
+             </SidebarMenuButton>
           </SidebarFooter>
         </Sidebar>
+        
         <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
           <header className="h-14 border-b flex items-center px-6">
             <Button variant="ghost" size="icon" className="md:hidden">
               <Menu className="h-5 w-5" />
             </Button>
             <div className="ml-auto flex items-center space-x-4">
-              <span className="text-sm font-medium">Admin</span>
+              <span className="text-sm font-medium">Admin</span> 
             </div>
           </header>
           <main className="flex-1 overflow-auto">
