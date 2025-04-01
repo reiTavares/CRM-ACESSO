@@ -10,10 +10,9 @@ import { useState, useEffect } from "react";
     import { Separator } from "@/components/ui/separator";
     import {
       PhoneCall, Check, X, Plus, Clock, CalendarClock, FileText, Building, Save, User2, MessageCircle,
-      Loader2, UserCog, UserCheck // Added icons for new fields
+      Loader2, UserCog, UserCheck // Icons for control fields
     } from "lucide-react";
-    // Assuming PacienteData is defined elsewhere or implicitly updated
-    import { PacienteData } from "@/components/pacientes/paciente-card";
+    import { PacienteData } from "@/components/pacientes/paciente-card"; // Assuming PacienteData is defined here
     import {
       Select,
       SelectContent,
@@ -47,7 +46,7 @@ import { useState, useEffect } from "react";
     };
     // --- End Helper ---
 
-    // --- Mock Data (Keep or fetch from API) ---
+    // --- Mock Data ---
     const hospitalsData: Record<string, string[]> = {
       "HODF": ["Dr. João Silva", "Dra. Ana Costa", "Dr. Pedro Martins", "Dra. Carla Dias"],
       "HO Londrina": ["Dr. Carlos Souza", "Dra. Beatriz Lima", "Dr. Ricardo Alves", "Dra. Fernanda Vieira"],
@@ -57,14 +56,14 @@ import { useState, useEffect } from "react";
     };
     const hospitalNames = Object.keys(hospitalsData).filter(name => name !== "");
     const sampleGestores = ["Ana Gestora", "Carlos Gestor", "Beatriz Gestora"];
-    const sampleConsultores = ["Consultor Logado", "Mariana Consultora", "Pedro Consultor"]; // Placeholder for logged-in user
+    const sampleConsultores = ["Consultor Logado", "Mariana Consultora", "Pedro Consultor"];
     // --- End Mock Data ---
 
-    // --- Updated Interface (Conceptually, should match paciente-card.tsx) ---
+    // --- Updated Interface ---
     interface PacienteDataExtended extends PacienteData {
         gestorResponsavel?: string;
         consultorResponsavel?: string;
-        marketingData?: { // Ensure marketingData structure is defined
+        marketingData?: {
             fonte?: string;
             campanha?: string;
             conjunto?: string;
@@ -81,11 +80,10 @@ import { useState, useEffect } from "react";
     }
     // --- End Interface ---
 
-
     interface PacienteDetailModalProps {
       open: boolean;
       onOpenChange: (open: boolean) => void;
-      paciente: PacienteDataExtended | null; // Use extended interface
+      paciente: PacienteDataExtended | null;
     }
 
     export function PacienteDetailModal({
@@ -94,7 +92,7 @@ import { useState, useEffect } from "react";
         paciente: initialPaciente,
     }: PacienteDetailModalProps) {
       const [activeTab, setActiveTab] = useState("contato");
-      const [paciente, setPaciente] = useState<PacienteDataExtended | null>(null); // Use extended interface
+      const [paciente, setPaciente] = useState<PacienteDataExtended | null>(null);
       const { toast } = useToast();
 
       const availableDoctors = paciente ? (hospitalsData[paciente.hospital] || []) : [];
@@ -103,7 +101,6 @@ import { useState, useEffect } from "react";
       const getInitialPacienteWithDefaults = (p: PacienteDataExtended | null): PacienteDataExtended | null => {
           if (!p) return null;
 
-          // Add sample marketing data if missing or empty
           const marketingDataDefaults = {
               fonte: p.origem === 'Publicidade Digital' ? 'Facebook Ads' : p.origem === 'Publicidade Tradicional' ? 'Revista Local' : undefined,
               campanha: p.origem === 'Publicidade Digital' ? 'Campanha Catarata Junho' : undefined,
@@ -122,35 +119,31 @@ import { useState, useEffect } from "react";
           return {
               ...p,
               gestorResponsavel: p.gestorResponsavel ?? sampleGestores[Math.floor(Math.random() * sampleGestores.length)],
-              consultorResponsavel: p.consultorResponsavel ?? sampleConsultores[Math.floor(Math.random() * sampleConsultores.length)], // Replace with logged-in user logic later
+              consultorResponsavel: p.consultorResponsavel ?? sampleConsultores[0], // Default to first consultant (logged-in user placeholder)
               marketingData: {
-                  ...marketingDataDefaults, // Apply defaults first
-                  ...(p.marketingData || {}), // Override with existing data if present
+                  ...marketingDataDefaults,
+                  ...(p.marketingData || {}),
               },
-              historico: p.historico || [], // Ensure historico is always an array
-              procedimentos: p.procedimentos || [], // Ensure procedimentos is always an array
+              historico: p.historico || [],
+              procedimentos: p.procedimentos || [],
           };
       };
 
-
-      // Update local paciente state when the prop changes or modal opens
+      // Update local paciente state
       useEffect(() => {
         const pacienteComDefaults = getInitialPacienteWithDefaults(initialPaciente);
         setPaciente(pacienteComDefaults);
 
         if (open) {
-            setActiveTab("contato"); // Reset to first tab on open
+            setActiveTab("contato");
         }
-        // Reset doctor if hospital changes or doctor is invalid for the hospital
         if (pacienteComDefaults && (!hospitalsData[pacienteComDefaults.hospital] || !hospitalsData[pacienteComDefaults.hospital]?.includes(pacienteComDefaults.medico))) {
             const firstDoctor = hospitalsData[pacienteComDefaults.hospital]?.[0] || "";
-            // Update the state based on the initial prop
             setPaciente(currentInitial => currentInitial ? ({ ...currentInitial, medico: firstDoctor }) : null);
         }
       }, [initialPaciente, open]);
 
-
-      // --- Input Handlers for Paciente Data (Non-WhatsApp) ---
+      // --- Input Handlers ---
       const handleInputChange = (field: keyof PacienteDataExtended, value: any) => {
         if (field === 'dataNascimento') {
             try {
@@ -164,10 +157,37 @@ import { useState, useEffect } from "react";
         }
       };
 
+      const handleMarketingInputChange = (field: keyof NonNullable<PacienteDataExtended['marketingData']>, value: any) => {
+          setPaciente(prev => {
+              if (!prev) return null;
+              let processedValue = value;
+              if (field === 'dataIndicacao' || field === 'dataEvento') {
+                  try {
+                      processedValue = value ? new Date(value + 'T00:00:00Z') : null;
+                      if (processedValue && !isValid(processedValue)) {
+                          console.warn(`Invalid date value for marketing field ${field}:`, value);
+                          processedValue = prev.marketingData?.[field] ?? null; // Revert on invalid
+                      }
+                  } catch (e) {
+                      console.error(`Error parsing date for marketing field ${field}:`, value, e);
+                      processedValue = prev.marketingData?.[field] ?? null; // Revert on error
+                  }
+              }
+              return {
+                  ...prev,
+                  marketingData: {
+                      ...(prev.marketingData || {}),
+                      [field]: processedValue,
+                  }
+              };
+          });
+      };
+
+
       const handleProcedureInputChange = (procIndex: number, field: string, value: any) => {
          setPaciente(prev => {
             if (!prev) return null;
-            const updatedProcedimentos = [...prev.procedimentos];
+            const updatedProcedimentos = [...(prev.procedimentos || [])]; // Ensure array exists
             if (updatedProcedimentos[procIndex]) {
                 let processedValue = value;
                 if (field === 'data') {
@@ -201,7 +221,7 @@ import { useState, useEffect } from "react";
 
         const newDoctorList = hospitalsData[newHospital] || [];
         const newSelectedDoctor = newDoctorList[0] || "";
-        const updatedProcedimentos = paciente.procedimentos.map(proc =>
+        const updatedProcedimentos = (paciente.procedimentos || []).map(proc =>
           proc.status !== 'ganho' && proc.status !== 'perdido' ? { ...proc, hospital: newHospital } : proc
         );
         const historyDescription = `Hospital vinculado alterado de "${oldHospital || 'N/A'}" para "${newHospital}". Médico vinculado atualizado de "${oldDoctor || 'N/A'}" para "${newSelectedDoctor || 'N/A'}". Hospitais de procedimentos pendentes atualizados.`;
@@ -212,7 +232,7 @@ import { useState, useEffect } from "react";
             hospital: newHospital,
             medico: newSelectedDoctor,
             procedimentos: updatedProcedimentos,
-            historico: [newHistoricoEntry, ...(prev.historico || [])] // Ensure historico exists
+            historico: [newHistoricoEntry, ...(prev.historico || [])]
         }) : null);
 
         toast({ title: "Hospital Atualizado", description: `Hospital alterado para ${newHospital}. Médico resetado para ${newSelectedDoctor || 'nenhum'}.` });
@@ -226,7 +246,7 @@ import { useState, useEffect } from "react";
           setPaciente(prev => prev ? ({
               ...prev,
               medico: newDoctor,
-              historico: [newHistoricoEntry, ...(prev.historico || [])] // Ensure historico exists
+              historico: [newHistoricoEntry, ...(prev.historico || [])]
           }) : null);
           toast({ title: "Médico Atualizado", description: `Médico vinculado alterado para ${newDoctor}.` });
       }
@@ -238,33 +258,25 @@ import { useState, useEffect } from "react";
       const addProcedimento = () => { toast({ title: "Adicionar Procedimento", description: "Funcionalidade pendente." }); };
 
       const handleSaveChanges = () => {
-          // TODO: Implement actual API call to save the patient data
           console.log("Saving changes for paciente:", paciente);
-          // Simulate API call success
           toast({
               title: "Alterações Salvas (Simulado)",
               description: "Os dados do paciente foram atualizados.",
           });
-          // Optionally close the modal after saving:
-          // onOpenChange(false);
+          // onOpenChange(false); // Optionally close modal
       };
       // --- End Action Handlers ---
 
       // --- Render Logic ---
-      if (!open) {
-          return null;
-      }
+      if (!open) return null;
 
       if (!paciente) {
         return (
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0">
-                    <DialogHeader className="p-6 pb-0 shrink-0">
-                        <DialogTitle className="text-xl">Carregando...</DialogTitle>
-                    </DialogHeader>
+                    <DialogHeader className="p-6 pb-0 shrink-0"><DialogTitle className="text-xl">Carregando...</DialogTitle></DialogHeader>
                     <div className="p-6 text-center flex-1 flex items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <span className="ml-2">Carregando dados do paciente...</span>
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Carregando...</span>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -272,8 +284,9 @@ import { useState, useEffect } from "react";
       }
 
       const formattedNascimento = safeFormatDate(paciente.dataNascimento, "yyyy-MM-dd");
-      const formattedMarketingIndicacao = safeFormatDate(paciente.marketingData?.dataIndicacao, "dd/MM/yyyy");
-      const formattedMarketingEvento = safeFormatDate(paciente.marketingData?.dataEvento, "dd/MM/yyyy");
+      const formattedMarketingIndicacao = safeFormatDate(paciente.marketingData?.dataIndicacao, "yyyy-MM-dd");
+      const formattedMarketingEvento = safeFormatDate(paciente.marketingData?.dataEvento, "yyyy-MM-dd");
+
 
       return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -282,8 +295,8 @@ import { useState, useEffect } from "react";
               <div className="flex justify-between items-center">
                 <DialogTitle className="text-xl">{paciente.nome}</DialogTitle>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="icon" onClick={handleCall} title="Ligar para paciente"><PhoneCall className="h-4 w-4" /></Button>
-                     <Button size="sm" onClick={handleSaveChanges} title="Salvar Alterações"><Save className="h-4 w-4 mr-2" /> Salvar</Button>
+                    <Button variant="outline" size="icon" onClick={handleCall} title="Ligar"><PhoneCall className="h-4 w-4" /></Button>
+                     <Button size="sm" onClick={handleSaveChanges} title="Salvar"><Save className="h-4 w-4 mr-2" /> Salvar</Button>
                 </div>
               </div>
             </DialogHeader>
@@ -296,13 +309,12 @@ import { useState, useEffect } from "react";
                 <TabsTrigger value="historico">Histórico</TabsTrigger>
               </TabsList>
 
-              {/* Contact Tab */}
+              {/* Contact Tab - Back to 2 Columns */}
               <TabsContent value="contato" className="flex-1 overflow-y-auto mt-0 space-y-6">
-                {/* Use a single grid for all sections in this tab */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                  {/* Dados Pessoais (Column 1) */}
-                  <div className="space-y-4 md:col-span-1">
+                  {/* Column 1: Dados Pessoais */}
+                  <div className="space-y-4 md:col-span-1 md:border-r md:pr-6">
                     <h3 className="text-lg font-medium mb-2 border-b pb-1">Dados Pessoais</h3>
                     <div className="grid grid-cols-1 gap-3">
                       <div className="space-y-1"><Label htmlFor="hospital-vinculado">Hospital Vinculado</Label><Select value={paciente.hospital} onValueChange={handleHospitalChange}><SelectTrigger id="hospital-vinculado"><SelectValue placeholder="Selecione o hospital" /></SelectTrigger><SelectContent>{hospitalNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}</SelectContent></Select></div>
@@ -319,44 +331,44 @@ import { useState, useEffect } from "react";
                     </div>
                   </div>
 
-                  {/* Dados de Marketing (Column 2) */}
-                  <div className="space-y-4 md:col-span-1">
-                     <h3 className="text-lg font-medium mb-2 border-b pb-1">Dados de Marketing</h3>
-                     <div className="grid grid-cols-1 gap-3">
-                       <div className="space-y-1"><Label htmlFor="origem">Origem</Label><Select value={paciente.origem} onValueChange={(value) => handleInputChange('origem', value)}><SelectTrigger id="origem"><SelectValue placeholder="Selecione a origem" /></SelectTrigger><SelectContent><SelectItem value="Publicidade Digital">Publicidade Digital</SelectItem><SelectItem value="Evento">Evento</SelectItem><SelectItem value="Publicidade Tradicional">Publicidade Tradicional</SelectItem><SelectItem value="Indicação">Indicação</SelectItem></SelectContent></Select></div>
-                       {/* Conditional rendering - Fields are now editable */}
-                       {paciente.origem === "Publicidade Digital" || paciente.origem === "Publicidade Tradicional" ? (
-                         <>
-                           <div className="space-y-1"><Label>Fonte</Label><Input value={paciente.marketingData?.fonte || ""} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, fonte: e.target.value})} /></div>
-                           <div className="space-y-1"><Label>Campanha</Label><Input value={paciente.marketingData?.campanha || ""} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, campanha: e.target.value})} /></div>
-                           <div className="grid grid-cols-2 gap-3">
-                             <div className="space-y-1"><Label>Conjunto/Grupo</Label><Input value={paciente.marketingData?.conjunto || ""} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, conjunto: e.target.value})} /></div>
-                             <div className="space-y-1"><Label>Tipo Criativo</Label><Input value={paciente.marketingData?.tipoCriativo || ""} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, tipoCriativo: e.target.value})} /></div>
-                           </div>
-                           <div className="space-y-1"><Label>Título Criativo</Label><Input value={paciente.marketingData?.tituloCriativo || ""} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, tituloCriativo: e.target.value})} /></div>
-                           <div className="space-y-1"><Label>Palavra-chave</Label><Input value={paciente.marketingData?.palavraChave || ""} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, palavraChave: e.target.value})} /></div>
-                         </>
-                       ) : paciente.origem === "Indicação" ? (
-                         <>
-                           <div className="space-y-1"><Label>Quem Indicou</Label><Input value={paciente.marketingData?.quemIndicou || ""} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, quemIndicou: e.target.value})} /></div>
-                           <div className="grid grid-cols-2 gap-3">
-                             {/* Date inputs for marketing need careful handling */}
-                             <div className="space-y-1"><Label>Data Indicação</Label><Input type="date" value={safeFormatDate(paciente.marketingData?.dataIndicacao, "yyyy-MM-dd")} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, dataIndicacao: e.target.value ? new Date(e.target.value + 'T00:00:00Z') : null})} /></div>
-                             <div className="space-y-1"><Label>Telefone</Label><Input value={paciente.marketingData?.telefoneIndicacao || ""} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, telefoneIndicacao: e.target.value})} /></div>
-                           </div>
-                         </>
-                       ) : paciente.origem === "Evento" ? (
-                         <>
-                           <div className="space-y-1"><Label>Nome do Evento</Label><Input value={paciente.marketingData?.nomeEvento || ""} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, nomeEvento: e.target.value})} /></div>
-                           <div className="space-y-1"><Label>Data do Evento</Label><Input type="date" value={safeFormatDate(paciente.marketingData?.dataEvento, "yyyy-MM-dd")} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, dataEvento: e.target.value ? new Date(e.target.value + 'T00:00:00Z') : null})} /></div>
-                           <div className="space-y-1"><Label>Descrição</Label><Textarea value={paciente.marketingData?.descricaoEvento || ""} onChange={(e) => handleInputChange('marketingData', {...paciente.marketingData, descricaoEvento: e.target.value})} /></div>
-                         </>
-                       ) : null}
-                     </div>
-                  </div>
+                  {/* Column 2: Marketing & Controle */}
+                  <div className="space-y-6 md:col-span-1">
+                    {/* Dados de Marketing Section */}
+                    <div className="space-y-4">
+                       <h3 className="text-lg font-medium mb-2 border-b pb-1">Dados de Marketing</h3>
+                       <div className="grid grid-cols-1 gap-3">
+                         <div className="space-y-1"><Label htmlFor="origem">Origem</Label><Select value={paciente.origem} onValueChange={(value) => handleInputChange('origem', value)}><SelectTrigger id="origem"><SelectValue placeholder="Selecione a origem" /></SelectTrigger><SelectContent><SelectItem value="Publicidade Digital">Publicidade Digital</SelectItem><SelectItem value="Evento">Evento</SelectItem><SelectItem value="Publicidade Tradicional">Publicidade Tradicional</SelectItem><SelectItem value="Indicação">Indicação</SelectItem></SelectContent></Select></div>
+                         {paciente.origem === "Publicidade Digital" || paciente.origem === "Publicidade Tradicional" ? (
+                           <>
+                             <div className="space-y-1"><Label>Fonte</Label><Input value={paciente.marketingData?.fonte || ""} onChange={(e) => handleMarketingInputChange('fonte', e.target.value)} /></div>
+                             <div className="space-y-1"><Label>Campanha</Label><Input value={paciente.marketingData?.campanha || ""} onChange={(e) => handleMarketingInputChange('campanha', e.target.value)} /></div>
+                             <div className="grid grid-cols-2 gap-3">
+                               <div className="space-y-1"><Label>Conjunto/Grupo</Label><Input value={paciente.marketingData?.conjunto || ""} onChange={(e) => handleMarketingInputChange('conjunto', e.target.value)} /></div>
+                               <div className="space-y-1"><Label>Tipo Criativo</Label><Input value={paciente.marketingData?.tipoCriativo || ""} onChange={(e) => handleMarketingInputChange('tipoCriativo', e.target.value)} /></div>
+                             </div>
+                             <div className="space-y-1"><Label>Título Criativo</Label><Input value={paciente.marketingData?.tituloCriativo || ""} onChange={(e) => handleMarketingInputChange('tituloCriativo', e.target.value)} /></div>
+                             <div className="space-y-1"><Label>Palavra-chave</Label><Input value={paciente.marketingData?.palavraChave || ""} onChange={(e) => handleMarketingInputChange('palavraChave', e.target.value)} /></div>
+                           </>
+                         ) : paciente.origem === "Indicação" ? (
+                           <>
+                             <div className="space-y-1"><Label>Quem Indicou</Label><Input value={paciente.marketingData?.quemIndicou || ""} onChange={(e) => handleMarketingInputChange('quemIndicou', e.target.value)} /></div>
+                             <div className="grid grid-cols-2 gap-3">
+                               <div className="space-y-1"><Label>Data Indicação</Label><Input type="date" value={formattedMarketingIndicacao} onChange={(e) => handleMarketingInputChange('dataIndicacao', e.target.value)} /></div>
+                               <div className="space-y-1"><Label>Telefone</Label><Input value={paciente.marketingData?.telefoneIndicacao || ""} onChange={(e) => handleMarketingInputChange('telefoneIndicacao', e.target.value)} /></div>
+                             </div>
+                           </>
+                         ) : paciente.origem === "Evento" ? (
+                           <>
+                             <div className="space-y-1"><Label>Nome do Evento</Label><Input value={paciente.marketingData?.nomeEvento || ""} onChange={(e) => handleMarketingInputChange('nomeEvento', e.target.value)} /></div>
+                             <div className="space-y-1"><Label>Data do Evento</Label><Input type="date" value={formattedMarketingEvento} onChange={(e) => handleMarketingInputChange('dataEvento', e.target.value)} /></div>
+                             <div className="space-y-1"><Label>Descrição</Label><Textarea value={paciente.marketingData?.descricaoEvento || ""} onChange={(e) => handleMarketingInputChange('descricaoEvento', e.target.value)} /></div>
+                           </>
+                         ) : null}
+                       </div>
+                    </div>
 
-                   {/* Dados de Controle (Column 3) */}
-                   <div className="space-y-4 md:col-span-1">
+                    {/* Dados de Controle Section */}
+                    <div className="space-y-4 pt-4 border-t">
                        <h3 className="text-lg font-medium mb-2 border-b pb-1">Dados de Controle</h3>
                        <div className="grid grid-cols-1 gap-3">
                            <div className="space-y-1">
@@ -374,14 +386,15 @@ import { useState, useEffect } from "react";
                                    id="consultorResponsavel"
                                    value={paciente.consultorResponsavel || ''}
                                    onChange={(e) => handleInputChange('consultorResponsavel', e.target.value)}
-                                   placeholder="Nome do consultor (usuário logado)"
-                                   // readOnly // Could be readOnly if always set by system
+                                   placeholder="Nome do consultor"
+                                   // Consider making this readOnly if it's system-assigned
+                                   // readOnly
                                />
-                               <p className="text-xs text-muted-foreground">Normalmente preenchido pelo sistema.</p>
+                               {/* <p className="text-xs text-muted-foreground">Normalmente preenchido pelo sistema.</p> */}
                            </div>
                        </div>
-                   </div>
-
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
 
@@ -391,22 +404,20 @@ import { useState, useEffect } from "react";
                     <h3 className="text-lg font-medium">Procedimentos</h3>
                     <Button onClick={addProcedimento} size="sm"><Plus className="h-4 w-4 mr-1" />Adicionar</Button>
                  </div>
-                 {paciente.procedimentos.length === 0 ? (
+                 {(paciente.procedimentos || []).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">Nenhum procedimento cadastrado.</div>
                  ) : (
                     <div className="space-y-6 pb-4">
-                        {paciente.procedimentos.map((procedimento, index) => {
+                        {(paciente.procedimentos || []).map((procedimento, index) => {
                             const formattedProcDate = safeFormatDate(procedimento.data, "yyyy-MM-dd");
                             return (
                                 <div key={procedimento.id} className="border rounded-lg p-4 relative shadow-sm">
-                                    {/* Status Badge */}
                                     <div className="absolute top-2 right-2">
                                         {procedimento.status === "ganho" && (<Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">Ganho</Badge>)}
                                         {procedimento.status === "perdido" && (<Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">Perdido</Badge>)}
                                         {procedimento.status === "pendente" && (<Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">Pendente</Badge>)}
                                     </div>
-                                    {/* Header and Actions */}
-                                    <div className="flex justify-between items-start mb-3 mr-20"> {/* Added margin-right */}
+                                    <div className="flex justify-between items-start mb-3 mr-20">
                                         <h4 className="font-medium">{procedimento.tipo}</h4>
                                         {procedimento.status === "pendente" && (
                                             <div className="flex space-x-2">
@@ -415,16 +426,13 @@ import { useState, useEffect } from "react";
                                             </div>
                                         )}
                                     </div>
-                                    {/* Form Grid */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Left Column */}
                                         <div className="space-y-3">
                                             <div className="space-y-1"><Label htmlFor={`procedimento-${index}`}>Procedimento Específico</Label><Input id={`procedimento-${index}`} value={procedimento.procedimento || ''} onChange={(e) => handleProcedureInputChange(index, 'procedimento', e.target.value)} disabled={procedimento.status !== 'pendente'}/></div>
                                             <div className="space-y-1"><Label htmlFor={`hospital-proc-${index}`}>Hospital</Label><Input id={`hospital-proc-${index}`} value={procedimento.hospital || ''} readOnly className="bg-muted/50"/></div>
                                             <div className="space-y-1"><Label htmlFor={`medico-${index}`}>Médico</Label><Input id={`medico-${index}`} value={procedimento.medico || ''} onChange={(e) => handleProcedureInputChange(index, 'medico', e.target.value)} disabled={procedimento.status !== 'pendente'}/></div>
                                             <div className="space-y-1"><Label htmlFor={`tipo-${index}`}>Tipo (Automático)</Label><Input id={`tipo-${index}`} value={procedimento.tipo || ''} readOnly className="bg-muted/50"/></div>
                                         </div>
-                                        {/* Right Column */}
                                         <div className="space-y-3">
                                             <div className="space-y-1"><Label htmlFor={`valor-${index}`}>Valor</Label><Input id={`valor-${index}`} type="number" value={procedimento.valor || 0} onChange={(e) => handleProcedureInputChange(index, 'valor', e.target.value)} disabled={procedimento.status !== 'pendente'}/></div>
                                             <div className="space-y-1"><Label htmlFor={`data-${index}`}>Data de realização</Label><Input id={`data-${index}`} type="date" value={formattedProcDate} onChange={(e) => handleProcedureInputChange(index, 'data', e.target.value)} disabled={procedimento.status !== 'pendente'}/></div>
@@ -439,7 +447,7 @@ import { useState, useEffect } from "react";
                  )}
               </TabsContent>
 
-              {/* WhatsApp Tab - Uses the dedicated component */}
+              {/* WhatsApp Tab */}
               <TabsContent value="whatsapp" className="flex-1 flex flex-col min-h-0 mt-0">
                  <WhatsappChat
                     paciente={paciente}
@@ -455,7 +463,7 @@ import { useState, useEffect } from "react";
                  {(paciente.historico || []).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">Nenhum registro de histórico.</div>
                  ) : (
-                    <ScrollArea className="h-[calc(100%-4rem)] pr-4"> {/* Adjust height */}
+                    <ScrollArea className="h-[calc(100%-4rem)] pr-4">
                         <div className="space-y-3 pb-4">
                             {(paciente.historico || []).map((item) => (
                                 <div key={item.id} className="border rounded-lg p-3 shadow-sm">
