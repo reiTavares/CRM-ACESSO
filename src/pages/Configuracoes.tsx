@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Import useEffect
   import { AppShell } from "@/components/layout/app-shell";
   import {
     Tabs,
@@ -14,117 +14,48 @@ import React, { useState } from "react";
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
   import { DataTable } from "@/components/dashboard/data-table";
   import { ColumnDef } from "@tanstack/react-table";
-  import { QRCodeDisplay } from "@/components/ui/qr-code";
+  import { QRCodeDisplay } from "@/components/ui/qr-code"; // Import QR Code component
   import {
     ArrowUpDown,
     Building,
     FileSpreadsheet,
     PlusCircle,
-    User, // Keep User if needed elsewhere, otherwise remove if only User2 is used
+    User,
     Users,
     ShieldCheck,
     Stethoscope,
     CreditCard,
     MessageSquare,
-    Webhook,
-    RefreshCw,
-    Power,
+    Webhook, // Icon for API/Webhook
+    RefreshCw, // Icon for refresh
+    Power, // Icon for connect/disconnect
     PowerOff,
     CheckCircle,
     XCircle,
     AlertTriangle,
-    Loader2
+    Loader2 // Loading icon
   } from "lucide-react";
   import { useToast } from "@/hooks/use-toast";
-  import { Separator } from "@/components/ui/separator";
+  import { Separator } from "@/components/ui/separator"; // Import Separator
 
   // --- Types ---
-  type Hospital = {
-    id: string;
-    nome: string;
-    endereco: string;
-    telefone: string;
-    responsavel: string;
-    contatoSCM: string;
-    contatoAgendamento: string;
-  }
-
-  type Medico = {
-    id: string;
-    nome: string;
-    crm: string;
-    rqe: string;
-    hospital: string;
-  }
-
-  type Usuario = {
-    id: string;
-    nome: string;
-    email: string;
-    cpf: string;
-    nivelAcesso: "Super Admin" | "Admin" | "Gestor" | "Supervisor" | "Consultor";
-  }
-
-  type Convenio = {
-    id: string;
-    nome: string;
-    hospital: string;
-    tipo: string;
-  }
-
-  type FonteMarketing = {
-    id: string;
-    nome: string;
-    origem: "Publicidade Digital" | "Publicidade Tradicional" | "Indicação" | "Evento";
-    ativo: boolean;
-  }
-
+  type Hospital = { id: string; nome: string; endereco: string; telefone: string; responsavel: string; contatoSCM: string; contatoAgendamento: string; }
+  type Medico = { id: string; nome: string; crm: string; rqe: string; hospital: string; }
+  type Usuario = { id: string; nome: string; email: string; cpf: string; nivelAcesso: "Super Admin" | "Admin" | "Gestor" | "Supervisor" | "Consultor"; }
+  type Convenio = { id: string; nome: string; hospital: string; tipo: string; }
+  type FonteMarketing = { id: string; nome: string; origem: "Publicidade Digital" | "Publicidade Tradicional" | "Indicação" | "Evento"; ativo: boolean; }
   type ApiStatus = "disconnected" | "connected" | "connecting" | "error" | "needs_qr";
   // --- End Types ---
 
-  // --- Columns Definitions ---
-  const hospitaisColumns: ColumnDef<Hospital>[] = [
-    { accessorKey: "nome", header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Nome<ArrowUpDown className="ml-2 h-4 w-4" /></Button>), },
-    { accessorKey: "endereco", header: "Endereço", },
-    { accessorKey: "telefone", header: "Telefone", },
-    { accessorKey: "responsavel", header: "Responsável", },
-    { accessorKey: "contatoSCM", header: "Contato SCM", },
-    { accessorKey: "contatoAgendamento", header: "Contato Agendamento", },
-    { id: "acoes", cell: () => (<div className="flex space-x-2"><Button variant="ghost" size="sm">Editar</Button></div>), },
-  ];
-
-  const medicosColumns: ColumnDef<Medico>[] = [
-   { accessorKey: "nome", header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Nome<ArrowUpDown className="ml-2 h-4 w-4" /></Button>), },
-   { accessorKey: "crm", header: "CRM", },
-   { accessorKey: "rqe", header: "RQE", },
-   { accessorKey: "hospital", header: "Hospital", },
-   { id: "acoes", cell: () => (<div className="flex space-x-2"><Button variant="ghost" size="sm">Editar</Button></div>), },
-  ];
-
-  const usuariosColumns: ColumnDef<Usuario>[] = [
-   { accessorKey: "nome", header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Nome<ArrowUpDown className="ml-2 h-4 w-4" /></Button>), },
-   { accessorKey: "email", header: "Email", },
-   { accessorKey: "cpf", header: "CPF", },
-   { accessorKey: "nivelAcesso", header: "Nível de Acesso", cell: ({ row }) => { const nivel = row.getValue("nivelAcesso") as string; const colorMap: { [key: string]: string } = { "Super Admin": "bg-purple-100 text-purple-800", "Admin": "bg-blue-100 text-blue-800", "Gestor": "bg-green-100 text-green-800", "Supervisor": "bg-amber-100 text-amber-800", "Consultor": "bg-slate-100 text-slate-800", }; return (<Badge variant="outline" className={colorMap[nivel] ?? "bg-gray-100 text-gray-800"}>{nivel}</Badge>); }, }, // Added nullish coalescing for safety
-   { id: "acoes", cell: () => (<div className="flex space-x-2"><Button variant="ghost" size="sm">Editar</Button></div>), },
-  ];
-
-  const conveniosColumns: ColumnDef<Convenio>[] = [
-   { accessorKey: "nome", header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Nome<ArrowUpDown className="ml-2 h-4 w-4" /></Button>), },
-   { accessorKey: "hospital", header: "Hospital", },
-   { accessorKey: "tipo", header: "Tipo", },
-   { id: "acoes", cell: () => (<div className="flex space-x-2"><Button variant="ghost" size="sm">Editar</Button></div>), },
-  ];
-
-  const fontesMarketingColumns: ColumnDef<FonteMarketing>[] = [
-   { accessorKey: "nome", header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Nome<ArrowUpDown className="ml-2 h-4 w-4" /></Button>), },
-   { accessorKey: "origem", header: "Origem", cell: ({ row }) => { const origem = row.getValue("origem") as string; const colorMap: { [key: string]: string } = { "Publicidade Digital": "bg-blue-100 text-blue-800", "Publicidade Tradicional": "bg-amber-100 text-amber-800", "Indicação": "bg-green-100 text-green-800", "Evento": "bg-purple-100 text-purple-800", }; return (<Badge variant="outline" className={colorMap[origem] ?? "bg-gray-100 text-gray-800"}>{origem}</Badge>); }, }, // Added nullish coalescing for safety
-   { accessorKey: "ativo", header: "Status", cell: ({ row }) => { const ativo = row.getValue("ativo") as boolean; return (<Badge variant={ativo ? "default" : "outline"} className={ativo ? "" : "bg-gray-100 text-gray-800"}>{ativo ? "Ativo" : "Inativo"}</Badge>); }, },
-   { id: "acoes", cell: () => (<div className="flex space-x-2"><Button variant="ghost" size="sm">Editar</Button><Button variant="ghost" size="sm" className="text-destructive">Desativar</Button></div>), },
-  ];
+  // --- Columns Definitions (Keep as before) ---
+  const hospitaisColumns: ColumnDef<Hospital>[] = [ { accessorKey: "nome", header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Nome<ArrowUpDown className="ml-2 h-4 w-4" /></Button>), }, { accessorKey: "endereco", header: "Endereço", }, { accessorKey: "telefone", header: "Telefone", }, { accessorKey: "responsavel", header: "Responsável", }, { accessorKey: "contatoSCM", header: "Contato SCM", }, { accessorKey: "contatoAgendamento", header: "Contato Agendamento", }, { id: "acoes", cell: () => (<div className="flex space-x-2"><Button variant="ghost" size="sm">Editar</Button></div>), }, ];
+  const medicosColumns: ColumnDef<Medico>[] = [ { accessorKey: "nome", header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Nome<ArrowUpDown className="ml-2 h-4 w-4" /></Button>), }, { accessorKey: "crm", header: "CRM", }, { accessorKey: "rqe", header: "RQE", }, { accessorKey: "hospital", header: "Hospital", }, { id: "acoes", cell: () => (<div className="flex space-x-2"><Button variant="ghost" size="sm">Editar</Button></div>), }, ];
+  const usuariosColumns: ColumnDef<Usuario>[] = [ { accessorKey: "nome", header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Nome<ArrowUpDown className="ml-2 h-4 w-4" /></Button>), }, { accessorKey: "email", header: "Email", }, { accessorKey: "cpf", header: "CPF", }, { accessorKey: "nivelAcesso", header: "Nível de Acesso", cell: ({ row }) => { const nivel = row.getValue("nivelAcesso") as string; const colorMap: { [key: string]: string } = { "Super Admin": "bg-purple-100 text-purple-800", "Admin": "bg-blue-100 text-blue-800", "Gestor": "bg-green-100 text-green-800", "Supervisor": "bg-amber-100 text-amber-800", "Consultor": "bg-slate-100 text-slate-800", }; return (<Badge variant="outline" className={colorMap[nivel] ?? "bg-gray-100 text-gray-800"}>{nivel}</Badge>); }, }, { id: "acoes", cell: () => (<div className="flex space-x-2"><Button variant="ghost" size="sm">Editar</Button></div>), }, ];
+  const conveniosColumns: ColumnDef<Convenio>[] = [ { accessorKey: "nome", header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Nome<ArrowUpDown className="ml-2 h-4 w-4" /></Button>), }, { accessorKey: "hospital", header: "Hospital", }, { accessorKey: "tipo", header: "Tipo", }, { id: "acoes", cell: () => (<div className="flex space-x-2"><Button variant="ghost" size="sm">Editar</Button></div>), }, ];
+  const fontesMarketingColumns: ColumnDef<FonteMarketing>[] = [ { accessorKey: "nome", header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Nome<ArrowUpDown className="ml-2 h-4 w-4" /></Button>), }, { accessorKey: "origem", header: "Origem", cell: ({ row }) => { const origem = row.getValue("origem") as string; const colorMap: { [key: string]: string } = { "Publicidade Digital": "bg-blue-100 text-blue-800", "Publicidade Tradicional": "bg-amber-100 text-amber-800", "Indicação": "bg-green-100 text-green-800", "Evento": "bg-purple-100 text-purple-800", }; return (<Badge variant="outline" className={colorMap[origem] ?? "bg-gray-100 text-gray-800"}>{origem}</Badge>); }, }, { accessorKey: "ativo", header: "Status", cell: ({ row }) => { const ativo = row.getValue("ativo") as boolean; return (<Badge variant={ativo ? "default" : "outline"} className={ativo ? "" : "bg-gray-100 text-gray-800"}>{ativo ? "Ativo" : "Inativo"}</Badge>); }, }, { id: "acoes", cell: () => (<div className="flex space-x-2"><Button variant="ghost" size="sm">Editar</Button><Button variant="ghost" size="sm" className="text-destructive">Desativar</Button></div>), }, ];
   // --- End Columns Definitions ---
 
-  // --- Sample Data ---
+  // --- Sample Data (Keep as before) ---
   const hospitais: Hospital[] = [ { id: "1", nome: "Hospital São Lucas", endereco: "Rua A, 123", telefone: "(11) 1234-5678", responsavel: "João Silva", contatoSCM: "(11) 8765-4321", contatoAgendamento: "(11) 9876-5432" }, { id: "2", nome: "Hospital Santa Maria", endereco: "Av. B, 456", telefone: "(11) 2345-6789", responsavel: "Maria Santos", contatoSCM: "(11) 7654-3210", contatoAgendamento: "(11) 8765-4321" }, { id: "3", nome: "Hospital São Francisco", endereco: "Rua C, 789", telefone: "(11) 3456-7890", responsavel: "Pedro Oliveira", contatoSCM: "(11) 6543-2109", contatoAgendamento: "(11) 7654-3210" }, ];
   const medicos: Medico[] = [ { id: "1", nome: "Dr. Ricardo Silva", crm: "12345-SP", rqe: "54321", hospital: "Hospital São Lucas" }, { id: "2", nome: "Dra. Carla Santos", crm: "23456-SP", rqe: "65432", hospital: "Hospital Santa Maria" }, { id: "3", nome: "Dr. Marcos Oliveira", crm: "34567-SP", rqe: "76543", hospital: "Hospital São Francisco" }, { id: "4", nome: "Dra. Paula Costa", crm: "45678-SP", rqe: "87654", hospital: "Hospital São Lucas" }, ];
   const usuarios: Usuario[] = [ { id: "1", nome: "Admin Master", email: "admin@crm.com", cpf: "111.222.333-44", nivelAcesso: "Super Admin" }, { id: "2", nome: "Gestor de Vendas", email: "gestor@crm.com", cpf: "222.333.444-55", nivelAcesso: "Gestor" }, { id: "3", nome: "Supervisor 1", email: "supervisor1@crm.com", cpf: "333.444.555-66", nivelAcesso: "Supervisor" }, { id: "4", nome: "Consultor 1", email: "consultor1@crm.com", cpf: "444.555.666-77", nivelAcesso: "Consultor" }, { id: "5", nome: "Consultor 2", email: "consultor2@crm.com", cpf: "555.666.777-88", nivelAcesso: "Consultor" }, ];
@@ -137,15 +68,217 @@ import React, { useState } from "react";
     const { toast } = useToast();
 
     // --- State for Evolution API Config ---
-    const [apiUrl, setApiUrl] = useState("http://localhost:8080");
-    const [apiKey, setApiKey] = useState("");
-    const [apiInstance, setApiInstance] = useState("default");
+    const [apiUrl, setApiUrl] = useState("https://evo1.profusaodigital.com"); // Pre-filled, removed trailing slash
+    const [apiKey, setApiKey] = useState("76777ED82273-4FD5-A172-5E5764FB6F28"); // Pre-filled
+    const [apiInstance, setApiInstance] = useState("Acesso Oftalmologia"); // Pre-filled
     const [apiStatus, setApiStatus] = useState<ApiStatus>("disconnected");
     const [qrCode, setQrCode] = useState<string | null>(null);
     const [isLoadingQr, setIsLoadingQr] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
     const [connectionError, setConnectionError] = useState<string | null>(null);
     // --- End State ---
+
+    // --- Helper to create API Headers ---
+    const getApiHeaders = () => ({
+        'apikey': apiKey,
+        'Content-Type': 'application/json'
+    });
+
+    // --- Function to fetch QR Code ---
+    const fetchQrCode = async () => {
+        if (!apiUrl || !apiKey || !apiInstance) {
+            toast({ variant: "destructive", title: "Erro de Configuração", description: "URL da API, Chave e Instância são obrigatórios." });
+            return;
+        }
+
+        setIsLoadingQr(true);
+        setQrCode(null);
+        setConnectionError(null);
+
+        try {
+            const connectUrl = `${apiUrl}/instance/connect/${apiInstance}`;
+            console.log("Fetching QR Code via connect endpoint:", connectUrl);
+
+            const response = await fetch(connectUrl, {
+                method: 'GET',
+                headers: { 'apikey': apiKey }
+            });
+
+            // Improved error handling
+            if (!response.ok) {
+                let errorMsg = `Erro ${response.status}: ${response.statusText}`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.message || errorData.error || JSON.stringify(errorData) || errorMsg;
+                } catch (e) { console.error("Failed to parse error JSON:", e); }
+                throw new Error(errorMsg);
+            }
+
+            const data = await response.json();
+            console.log("Connect/QR Response:", data);
+
+            const base64Qr = data?.base64 || data?.qrcode?.base64 || null;
+
+            if (base64Qr) {
+                setQrCode(base64Qr);
+                setApiStatus("needs_qr");
+                toast({ title: "QR Code Recebido", description: "Escaneie o código com seu WhatsApp." });
+            } else if (data?.instance?.state === 'open') {
+                setApiStatus("connected");
+                 toast({ title: "API Conectada", description: "Conexão já estava ativa ou foi estabelecida." });
+            } else {
+                console.warn("Received OK response but no QR code and not connected:", data);
+                setApiStatus("error");
+                setConnectionError("Não foi possível obter o QR Code. Verifique o status da instância ou tente novamente.");
+                toast({ variant: "destructive", title: "Erro", description: "Não foi possível obter o QR Code." });
+            }
+
+        } catch (error: any) {
+            console.error("Error fetching QR Code:", error);
+            setApiStatus("error");
+            const errorMsg = error instanceof Error ? error.message : "Falha ao buscar QR Code.";
+            setConnectionError(errorMsg);
+            toast({ variant: "destructive", title: "Erro ao buscar QR Code", description: errorMsg });
+        } finally {
+            setIsLoadingQr(false);
+        }
+    };
+
+    // --- Function to check current connection status ---
+    const checkApiStatus = async () => {
+        if (!apiUrl || !apiKey || !apiInstance) {
+             toast({ variant: "destructive", title: "Erro de Configuração", description: "URL da API, Chave e Instância são obrigatórios." });
+             return;
+        }
+
+        setIsConnecting(true);
+        setConnectionError(null);
+        setQrCode(null); // Clear QR while checking status
+        console.log("Checking API Status...");
+
+        try {
+            const statusUrl = `${apiUrl}/instance/connectionState/${apiInstance}`;
+            const response = await fetch(statusUrl, {
+                method: 'GET',
+                headers: { 'apikey': apiKey }
+            });
+
+            if (!response.ok) {
+                 let errorMsg = `Erro ${response.status}: ${response.statusText}`;
+                 try { const errorData = await response.json(); errorMsg = errorData.message || errorData.error || JSON.stringify(errorData) || errorMsg; } catch (e) {}
+                 throw new Error(errorMsg);
+            }
+
+            const data = await response.json();
+            console.log("API Status Response:", data);
+
+            const currentState = data?.instance?.state;
+
+            switch (currentState) {
+                case 'open':
+                    setApiStatus("connected");
+                    toast({ title: "Status: Conectado" });
+                    break;
+                case 'close':
+                    setApiStatus("disconnected");
+                    toast({ title: "Status: Desconectado" });
+                    // Optionally try to fetch QR code immediately if disconnected
+                    // await fetchQrCode();
+                    break;
+                case 'connecting':
+                    setApiStatus("needs_qr"); // Treat 'connecting' as needing QR
+                    toast({ title: "Status: Conectando", description: "Tentando obter QR Code..." });
+                    await fetchQrCode();
+                    break;
+                default:
+                    console.warn("Unexpected API state:", currentState);
+                    setApiStatus("disconnected"); // Fallback to disconnected
+                    toast({ title: "Status: Desconhecido", description: "A API retornou um estado inesperado." });
+                    break;
+            }
+
+        } catch (error: any) {
+            console.error("Error checking API Status:", error);
+            setApiStatus("error");
+            const errorMsg = error instanceof Error ? error.message : "Falha ao verificar status.";
+            setConnectionError(errorMsg);
+            toast({ variant: "destructive", title: "Erro ao Verificar Status", description: errorMsg });
+        } finally {
+            setIsConnecting(false);
+        }
+    };
+
+
+    // --- API Interaction Functions ---
+    const handleConnectApi = async () => {
+        setIsConnecting(true);
+        setApiStatus("connecting");
+        setQrCode(null);
+        setConnectionError(null);
+        toast({ title: "Conectando API...", description: "Tentando conectar à API Evolution." });
+        await fetchQrCode(); // Attempt to connect and get QR if needed
+        setIsConnecting(false);
+    };
+
+    const handleDisconnectApi = async () => {
+        if (!apiUrl || !apiKey || !apiInstance) {
+             toast({ variant: "destructive", title: "Erro de Configuração", description: "URL da API, Chave e Instância são obrigatórios." });
+             return;
+        }
+
+        setIsConnecting(true);
+        setConnectionError(null);
+        toast({ title: "Desconectando API..." });
+
+        try {
+            const logoutUrl = `${apiUrl}/instance/logout/${apiInstance}`;
+            const response = await fetch(logoutUrl, {
+                method: 'DELETE',
+                headers: { 'apikey': apiKey }
+            });
+
+            if (!response.ok) {
+                 let errorMsg = `Erro ${response.status}: ${response.statusText}`;
+                 try { const errorData = await response.json(); errorMsg = errorData.message || errorData.error || JSON.stringify(errorData) || errorMsg; } catch (e) {}
+                 // Handle specific error for already disconnected instance gracefully
+                 if (response.status === 404 || (errorMsg && errorMsg.toLowerCase().includes("instance not found"))) {
+                     console.log("Instance already disconnected or not found.");
+                     setApiStatus("disconnected");
+                     setQrCode(null);
+                     toast({ title: "API Já Desconectada" });
+                     setIsConnecting(false);
+                     return;
+                 }
+                 throw new Error(errorMsg);
+            }
+
+            setApiStatus("disconnected");
+            setQrCode(null);
+            toast({ title: "API Desconectada", description: "Conexão encerrada com sucesso." });
+
+        } catch (error: any) {
+            console.error("Error disconnecting API:", error);
+            // Don't necessarily set to error status if disconnect fails, maybe it's already disconnected
+            // setApiStatus("error");
+            const errorMsg = error instanceof Error ? error.message : "Falha ao desconectar.";
+            setConnectionError(errorMsg);
+            toast({ variant: "destructive", title: "Erro ao Desconectar", description: errorMsg });
+        } finally {
+            setIsConnecting(false);
+        }
+    };
+
+    const handleRefreshQrCode = async () => {
+        toast({ title: "Verificando Status / Atualizando QR Code..." });
+        await checkApiStatus(); // Check status first, which might fetch QR if needed
+    };
+    // --- End API Interaction Functions ---
+
+    // --- Effect to check status on load (Optional) ---
+    // useEffect(() => {
+    //     checkApiStatus();
+    // }, []); // Run only once on mount
+
 
     const handleFileUpload = () => {
       toast({ title: "Upload de arquivo", description: "Funcionalidade em desenvolvimento", });
@@ -155,86 +288,12 @@ import React, { useState } from "react";
       toast({ title: `Adicionar ${type}`, description: "Funcionalidade em desenvolvimento", });
     };
 
-    // --- MOCKED API Interaction Functions ---
-    const handleConnectApi = async () => {
-      setIsConnecting(true);
-      setApiStatus("connecting");
-      setQrCode(null);
-      setIsLoadingQr(true);
-      setConnectionError(null);
-      console.log("Attempting to connect to Evolution API:", { apiUrl, apiKey, apiInstance });
-      toast({ title: "Conectando API...", description: "Tentando conectar à API Evolution." });
-
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate delay
-
-      const outcome = Math.random();
-      if (outcome < 0.6) {
-        setApiStatus("needs_qr");
-        setQrCode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="); // Placeholder
-        setIsLoadingQr(false);
-        toast({ title: "QR Code Necessário", description: "Escaneie o QR Code com seu WhatsApp." });
-      } else if (outcome < 0.85) {
-        setApiStatus("connected");
-        setIsLoadingQr(false);
-        toast({ title: "API Conectada", description: "Conexão estabelecida." });
-      } else {
-        setApiStatus("error");
-        setConnectionError("Falha simulada ao conectar.");
-        setIsLoadingQr(false);
-        toast({ variant: "destructive", title: "Erro de Conexão", description: "Falha simulada." });
-      }
-      setIsConnecting(false);
-    };
-
-    const handleDisconnectApi = async () => {
-      setIsConnecting(true);
-      setApiStatus("connecting");
-      setQrCode(null);
-      setConnectionError(null);
-      console.log("Attempting to disconnect from Evolution API:", { apiInstance });
-      toast({ title: "Desconectando API..." });
-
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
-
-      setApiStatus("disconnected");
-      toast({ title: "API Desconectada" });
-      setIsConnecting(false);
-    };
-
-    const handleRefreshQrCode = async () => {
-      if (apiStatus !== 'needs_qr' && apiStatus !== 'error' && apiStatus !== 'disconnected') {
-          toast({ variant: "destructive", title: "Ação Inválida", description: "Só é possível atualizar o QR Code quando desconectado ou em erro." });
-          return;
-      }
-      setApiStatus("connecting");
-      setIsLoadingQr(true);
-      setQrCode(null);
-      setConnectionError(null);
-      toast({ title: "Atualizando QR Code..." });
-
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate delay
-
-      const outcome = Math.random();
-       if (outcome < 0.8) {
-          setApiStatus("needs_qr");
-          setQrCode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="); // Placeholder
-          setIsLoadingQr(false);
-          toast({ title: "QR Code Atualizado", description: "Escaneie o novo QR Code." });
-       } else {
-          setApiStatus("error");
-          setConnectionError("Falha simulada ao obter QR Code.");
-          setIsLoadingQr(false);
-          toast({ variant: "destructive", title: "Erro ao Atualizar", description: "Não foi possível obter um novo QR Code." });
-       }
-    };
-    // --- End MOCKED Functions ---
-
     const renderApiStatus = () => {
       switch (apiStatus) {
         case "connected":
           return <Badge variant="default" className="bg-green-500 hover:bg-green-600"><CheckCircle className="h-4 w-4 mr-1" /> Conectado</Badge>;
         case "connecting":
-          return <Badge variant="outline" className="text-blue-600 border-blue-300"><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Conectando...</Badge>;
+          return <Badge variant="outline" className="text-blue-600 border-blue-300"><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Verificando...</Badge>;
         case "needs_qr":
           return <Badge variant="outline" className="text-yellow-600 border-yellow-400"><AlertTriangle className="h-4 w-4 mr-1" /> Escanear QR Code</Badge>;
         case "error":
@@ -268,7 +327,7 @@ import React, { useState } from "react";
                   <CardTitle>Configuração da API Evolution (WhatsApp)</CardTitle>
                   <CardDescription>
                     Configure os detalhes para conectar à sua instância da Evolution API.
-                    Certifique-se de que a API esteja rodando em um servidor acessível.
+                    Certifique-se de que a API esteja rodando em <a href={apiUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">{apiUrl}</a>.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -280,10 +339,10 @@ import React, { useState } from "react";
                         <Label htmlFor="apiUrl">URL da API</Label>
                         <Input
                           id="apiUrl"
-                          placeholder="Ex: http://seu-servidor:8080"
+                          placeholder="Ex: https://evo1.profusaodigital.com"
                           value={apiUrl}
-                          onChange={(e) => setApiUrl(e.target.value)}
-                          disabled={isConnecting || apiStatus === 'connected'} // Disable when connecting or connected
+                          onChange={(e) => setApiUrl(e.target.value)} // Corrected onChange
+                          disabled={isConnecting || apiStatus === 'connected'}
                         />
                         <p className="text-xs text-muted-foreground">O endereço onde sua Evolution API está rodando.</p>
                       </div>
@@ -295,17 +354,17 @@ import React, { useState } from "react";
                           placeholder="Sua chave secreta da API"
                           value={apiKey}
                           onChange={(e) => setApiKey(e.target.value)}
-                          disabled={isConnecting || apiStatus === 'connected'} // Disable when connecting or connected
+                          disabled={isConnecting || apiStatus === 'connected'}
                         />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="apiInstance">Nome da Instância</Label>
                         <Input
                           id="apiInstance"
-                          placeholder="Ex: default"
+                          placeholder="Ex: Acesso Oftalmologia"
                           value={apiInstance}
                           onChange={(e) => setApiInstance(e.target.value)}
-                          disabled={isConnecting || apiStatus === 'connected'} // Disable when connecting or connected
+                          disabled={isConnecting || apiStatus === 'connected'}
                         />
                          <p className="text-xs text-muted-foreground">O nome da instância que você deseja usar.</p>
                       </div>
@@ -314,8 +373,8 @@ import React, { useState } from "react";
                           {/* Connect Button */}
                           {apiStatus !== 'connected' && (
                               <Button onClick={handleConnectApi} disabled={isConnecting || !apiUrl || !apiKey || !apiInstance}>
-                                  {isConnecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Power className="mr-2 h-4 w-4" />}
-                                  {isConnecting ? 'Conectando...' : 'Conectar'}
+                                  {isConnecting && apiStatus === 'connecting' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Power className="mr-2 h-4 w-4" />}
+                                  {isConnecting && apiStatus === 'connecting' ? 'Conectando...' : 'Conectar'}
                               </Button>
                           )}
                           {/* Disconnect Button */}
@@ -325,13 +384,11 @@ import React, { useState } from "react";
                                   {isConnecting ? 'Desconectando...' : 'Desconectar'}
                               </Button>
                           )}
-                          {/* Refresh QR Button */}
-                          {(apiStatus === 'needs_qr' || apiStatus === 'error' || apiStatus === 'disconnected') && (
-                               <Button variant="outline" onClick={handleRefreshQrCode} disabled={isConnecting || isLoadingQr}>
-                                  <RefreshCw className={`mr-2 h-4 w-4 ${isLoadingQr ? 'animate-spin' : ''}`} />
-                                  {isLoadingQr ? 'Atualizando...' : 'Atualizar QR Code'}
-                              </Button>
-                          )}
+                          {/* Refresh/Check Status Button */}
+                           <Button variant="outline" onClick={handleRefreshQrCode} disabled={isConnecting || isLoadingQr}>
+                              <RefreshCw className={`mr-2 h-4 w-4 ${(isLoadingQr || (isConnecting && apiStatus === 'connecting')) ? 'animate-spin' : ''}`} />
+                              {(isLoadingQr || (isConnecting && apiStatus === 'connecting')) ? 'Verificando...' : 'Verificar Status / QR Code'}
+                          </Button>
                        </div>
                     </div>
 
@@ -348,15 +405,20 @@ import React, { useState } from "react";
                        <div className="flex justify-center md:justify-start">
                           <QRCodeDisplay
                               value={qrCode}
-                              isLoading={isLoadingQr}
-                              error={connectionError && (apiStatus === 'needs_qr' || apiStatus === 'error') ? connectionError : null} // Show error on QR if relevant
+                              isLoading={isLoadingQr || (isConnecting && apiStatus === 'connecting')} // Show loading when connecting too
+                              error={connectionError && (apiStatus === 'needs_qr' || apiStatus === 'error') ? connectionError : null}
                               size={200}
                           />
                        </div>
-                       {apiStatus === 'needs_qr' && !isLoadingQr && qrCode && ( // Only show if QR is needed and loaded
+                       {apiStatus === 'needs_qr' && !isLoadingQr && qrCode && (
                           <p className="text-sm text-center md:text-left text-muted-foreground">
                               Abra o WhatsApp no seu celular e escaneie este código para conectar a instância.
                           </p>
+                       )}
+                       {apiStatus === 'connected' && (
+                           <p className="text-sm text-center md:text-left text-green-600">
+                               Instância conectada e pronta para uso.
+                           </p>
                        )}
                     </div>
                   </div>
@@ -364,7 +426,7 @@ import React, { useState } from "react";
               </Card>
             </TabsContent>
 
-            {/* Other Tabs (Hospitais, Medicos, etc.) */}
+            {/* Other Tabs (Hospitais, Medicos, etc.) - Keep as they were */}
             <TabsContent value="hospitais" className="space-y-4">
               <Card className="w-full">
                 <CardHeader>
@@ -402,7 +464,8 @@ import React, { useState } from "react";
                     <h3 className="text-sm font-medium mb-2 flex items-center"><ShieldCheck className="h-4 w-4 mr-2 text-muted-foreground" />Níveis de Acesso</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
                       <Badge variant="outline" className="bg-purple-100 text-purple-800 justify-center">Super Admin</Badge>
-                      <Badge variant="outline" className="bg-blue-100 text-blue-800 justify-center">Gestor</Badge>
+                      <Badge variant="outline" className="bg-blue-100 text-blue-800 justify-center">Admin</Badge>
+                      <Badge variant="outline" className="bg-green-100 text-green-800 justify-center">Gestor</Badge>
                       <Badge variant="outline" className="bg-amber-100 text-amber-800 justify-center">Supervisor</Badge>
                       <Badge variant="outline" className="bg-slate-100 text-slate-800 justify-center">Consultor</Badge>
                     </div>

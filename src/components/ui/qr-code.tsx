@@ -44,7 +44,8 @@ import React from 'react';
         )}
         {!isLoading && !error && value && (
           <img
-            src={`data:image/png;base64,${value}`}
+            // Ensure the base64 string is correctly formatted for the src attribute
+            src={value.startsWith('data:image') ? value : `data:image/png;base64,${value}`}
             alt="QR Code para conectar WhatsApp"
             width={size}
             height={size}
@@ -54,7 +55,7 @@ import React from 'react';
          {!isLoading && !error && !value && (
            <div className="text-center text-muted-foreground">
              <p>QR Code aparecerá aqui.</p>
-             <p className="text-xs mt-1">Clique em "Conectar" ou "Atualizar QR Code".</p>
+             <p className="text-xs mt-1">Clique em "Verificar Status / QR Code".</p>
            </div>
          )}
       </div>
