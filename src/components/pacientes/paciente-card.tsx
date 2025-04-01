@@ -1,18 +1,18 @@
-import { User, Building, User2, CreditCard, Phone, BookText, Stethoscope } from "lucide-react"; // Added Stethoscope
+import { User, Building, User2, CreditCard, Phone, BookText, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card"; // Removed CardFooter import as it wasn't used
+// Removed Dialog, DialogContent imports as they are handled by PacienteDetailModal
 import { useState } from "react";
 import { PacienteDetailModal } from "@/components/pacientes/paciente-detail-modal";
 import { cn } from "@/lib/utils";
 
+// Keep the interface definition
 export interface PacienteData {
   id: string;
   nome: string;
   hospital: string;
   medico: string;
   valor: number;
-  // produtos: string[]; // Keep for potential future use, but card now uses procedures
   convenio: string;
   telefone: string;
   dataNascimento: Date;
@@ -24,12 +24,12 @@ export interface PacienteData {
   bairro: string;
   origem: "Publicidade Digital" | "Evento" | "Publicidade Tradicional" | "Indicação";
   marketingData: any;
-  procedimentos: { // Ensure procedures array is typed
+  procedimentos: {
     id: string;
     tipo: string;
     hospital: string;
     medico: string;
-    procedimento: string; // Specific procedure name
+    procedimento: string;
     valor: number;
     data: Date;
     observacao: string;
@@ -41,12 +41,15 @@ export interface PacienteData {
 }
 
 interface PacienteCardProps {
-  paciente: PacienteData;
+  paciente: PacienteData; // Paciente is required for the card to render meaningfully
   className?: string;
 }
 
 export function PacienteCard({ paciente, className }: PacienteCardProps) {
   const [showDetails, setShowDetails] = useState(false);
+
+  // Since PacienteData is required by props, we can assume 'paciente' exists here.
+  // If Pacientes.tsx could potentially pass null/undefined, filtering should happen there.
 
   const statusClass = {
     "Lead Recebido": "bg-gray-400",
@@ -61,7 +64,6 @@ export function PacienteCard({ paciente, className }: PacienteCardProps) {
     "Agendamento Cirurgia 2º Olho": "bg-lime-400",
     "2º Olho - Cirurgia Realizada": "bg-emerald-500",
     "Resgate": "bg-orange-400",
-    // Fallback (shouldn't happen with updated stages)
     "Novo": "card-status-novo",
     "Em Negociação": "card-status-negociacao",
     "Finalizado": "card-status-finalizado",
@@ -70,41 +72,45 @@ export function PacienteCard({ paciente, className }: PacienteCardProps) {
     "Agendado": "card-status-agendado",
   };
 
-  // Get the first procedure name to display, or fallback
-  const procedureToDisplay = paciente.procedimentos.length > 0 
-    ? paciente.procedimentos[0].procedimento 
+  // Safely access procedures and status
+  const procedureToDisplay = paciente.procedimentos?.length > 0
+    ? paciente.procedimentos[0].procedimento
     : "N/A";
+
+  const status = paciente.status;
+  const currentStatusClass = statusClass[status as keyof typeof statusClass] || 'bg-gray-300';
 
   return (
     <>
-      <Card 
+      <Card
         className={cn("relative overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer", className)}
         onClick={() => setShowDetails(true)}
       >
         {/* Status Indicator */}
-        <div 
-          className={cn("card-status", statusClass[paciente.status as keyof typeof statusClass] || 'bg-gray-300')} 
-          title={paciente.status} // Add title for hover info
-        /> 
+        <div
+          className={cn("card-status", currentStatusClass)}
+          title={status}
+        />
         <CardContent className="pt-4 px-4">
           <div className="space-y-3">
-            {/* Hospital First */}
+            {/* Hospital */}
             <div className="flex items-center text-xs text-muted-foreground">
               <Building className="h-3 w-3 mr-1 flex-shrink-0" />
               <span className="font-medium truncate">{paciente.hospital}</span>
             </div>
 
-            {/* Patient Name */}
+            {/* Name */}
             <h3 className="font-medium truncate text-primary">{paciente.nome}</h3>
-            
+
             {/* Doctor */}
             <div className="flex items-center text-xs text-muted-foreground">
               <User2 className="h-3 w-3 mr-1 flex-shrink-0" />
               <span className="truncate">{paciente.medico}</span>
             </div>
-            
+
+            {/* Details Section */}
             <div className="space-y-1 border-t pt-2 mt-2">
-              {/* Specific Procedure */}
+              {/* Procedure */}
               <div className="flex items-center text-xs">
                  <Stethoscope className="h-3 w-3 mr-1 flex-shrink-0 text-indigo-500" />
                  <span className="font-medium truncate">{procedureToDisplay}</span>
@@ -112,7 +118,10 @@ export function PacienteCard({ paciente, className }: PacienteCardProps) {
               {/* Value */}
               <div className="flex items-center text-xs">
                 <CreditCard className="h-3 w-3 mr-1 flex-shrink-0" />
-                <span className="font-medium">R$ {paciente.valor.toLocaleString('pt-BR')}</span>
+                {/* Check type before formatting */}
+                <span className="font-medium">
+                  R$ {typeof paciente.valor === 'number' ? paciente.valor.toLocaleString('pt-BR') : 'N/A'}
+                </span>
               </div>
               {/* Convenio */}
               <div className="flex items-center text-xs text-muted-foreground">
@@ -125,30 +134,16 @@ export function PacienteCard({ paciente, className }: PacienteCardProps) {
                 <span>{paciente.telefone}</span>
               </div>
             </div>
-            
-            {/* Displaying first procedure name now, removing the old 'produtos' loop */}
-            {/* {paciente.produtos.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {paciente.produtos.map((produto, i) => (
-                  <span 
-                    key={i}
-                    className="inline-flex text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded"
-                  >
-                    {produto}
-                  </span>
-                ))}
-              </div>
-            )} */}
           </div>
         </CardContent>
       </Card>
 
-      <PacienteDetailModal 
-        open={showDetails} 
-        onOpenChange={setShowDetails} 
-        paciente={paciente} 
-        // Pass an update function if managing state outside
-        // onUpdatePaciente={handleUpdatePaciente} 
+      {/* Modal rendering - Pass the required paciente prop */}
+      {/* The modal component itself handles the case where it might receive null initially if needed */}
+      <PacienteDetailModal
+        open={showDetails}
+        onOpenChange={setShowDetails}
+        paciente={paciente} // Pass the paciente prop received by PacienteCard
       />
     </>
   );
