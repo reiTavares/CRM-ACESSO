@@ -233,6 +233,7 @@ import { useState, useEffect } from "react";
         const updatedProcedimentos = (paciente.procedimentos || []).map(proc =>
           proc.status !== 'ganho' && proc.status !== 'perdido' ? { ...proc, hospital: newHospital } : proc
         );
+        // Corrected history description
         const historyDescription = `Hospital vinculado alterado de "${oldHospital || 'N/A'}" para "${newHospital}". Médico vinculado atualizado de "${oldDoctor || 'N/A'}" para "${newSelectedDoctor || 'N/A'}". Hospitais de procedimentos pendentes atualizados.`;
         const newHistoricoEntry = { id: `hist-${Date.now()}`, data: new Date(), tipo: "Alteração", descricao: historyDescription, usuario: "Sistema" };
 
@@ -318,10 +319,9 @@ import { useState, useEffect } from "react";
                 <TabsTrigger value="historico">Histórico</TabsTrigger>
               </TabsList>
 
-              {/* Contact Tab - Back to 2 Columns */}
+              {/* Contact Tab */}
               <TabsContent value="contato" className="flex-1 overflow-y-auto mt-0 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
                   {/* Column 1: Dados Pessoais */}
                   <div className="space-y-4 md:col-span-1 md:border-r md:pr-6">
                     <h3 className="text-lg font-medium mb-2 border-b pb-1">Dados Pessoais</h3>
