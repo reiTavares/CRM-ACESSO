@@ -1,4 +1,4 @@
-import { User, Building, User2, CreditCard, Phone, BookText, Stethoscope } from "lucide-react";
+import { User, Building, CreditCard, Phone, BookText, Stethoscope, UserCheck, Eye } from "lucide-react"; // Removed User2, Added Eye
     import { Button } from "@/components/ui/button";
     import { Card, CardContent } from "@/components/ui/card";
     import { useState, useEffect } from "react";
@@ -165,15 +165,21 @@ import { User, Building, User2, CreditCard, Phone, BookText, Stethoscope } from 
 
                 {/* Doctor */}
                 <div className="flex items-center text-xs text-muted-foreground">
-                  <User2 className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <Stethoscope className="h-3 w-3 mr-1 flex-shrink-0" /> {/* Changed icon */}
                   <span className="truncate">{paciente.medico}</span>
+                </div>
+
+                {/* Consultor Responsável */}
+                <div className="flex items-center text-xs text-muted-foreground">
+                  <UserCheck className="h-3 w-3 mr-1 flex-shrink-0 text-green-600" />
+                  <span className="truncate">{paciente.consultorResponsavel || 'N/A'}</span>
                 </div>
 
                 {/* Details Section */}
                 <div className="space-y-1 border-t pt-2 mt-2">
                   {/* Procedure */}
                   <div className="flex items-center text-xs">
-                     <Stethoscope className="h-3 w-3 mr-1 flex-shrink-0 text-indigo-500" />
+                     <Eye className="h-3 w-3 mr-1 flex-shrink-0 text-indigo-500" /> {/* Changed icon */}
                      <span className="font-medium truncate">{procedureToDisplay}</span>
                   </div>
                   {/* Value */}
