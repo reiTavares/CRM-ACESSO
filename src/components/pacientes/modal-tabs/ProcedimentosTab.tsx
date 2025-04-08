@@ -1,23 +1,29 @@
 import React from 'react';
     import { Button } from "@/components/ui/button";
     import { Plus } from "lucide-react";
-    import { PacienteDataExtended } from '@/components/pacientes/paciente-detail-modal'; // Assuming type is exported from modal
+    import { PacienteDataExtended } from '@/components/pacientes/paciente-detail-modal';
     import { ProcedimentoItem } from './ProcedimentoItem';
-    import { safeFormatDate } from './utils'; // Assuming safeFormatDate is moved to utils
-    import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+    import { safeFormatDate } from './utils';
+    import { ScrollArea } from "@/components/ui/scroll-area";
+    import { ProcedimentoConfig } from '@/components/configuracoes/ProcedimentosSettings';
 
     interface ProcedimentosTabProps {
       paciente: PacienteDataExtended;
       handleProcedureInputChange: (procIndex: number, field: string, value: any) => void;
       handleStatusChange: (procedimentoId: string, status: "ganho" | "perdido") => void;
+      // Adicionar nova prop
+      handleAgendarReagendar: (procedimentoId: string) => void;
       addProcedimento: () => void;
+      configuredProcedures: ProcedimentoConfig[];
     }
 
     export const ProcedimentosTab: React.FC<ProcedimentosTabProps> = ({
       paciente,
       handleProcedureInputChange,
       handleStatusChange,
+      handleAgendarReagendar, // Receber o novo handler
       addProcedimento,
+      configuredProcedures,
     }) => {
       const procedimentos = paciente.procedimentos || [];
 
@@ -30,19 +36,20 @@ import React from 'react';
           {procedimentos.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">Nenhum procedimento cadastrado.</div>
           ) : (
-            // Wrap the list in ScrollArea
-            <ScrollArea className="h-[calc(100%-8rem)] pr-4"> {/* Adjust height as needed */}
+            <ScrollArea className="h-[calc(100%-8rem)] pr-4">
               <div className="space-y-6 pb-4">
                 {procedimentos.map((procedimento, index) => {
                   const formattedProcDate = safeFormatDate(procedimento.data, "yyyy-MM-dd");
                   return (
                     <ProcedimentoItem
-                      key={procedimento.id}
+                      key={procedimento.id || `proc-item-${index}`} // Usar index como fallback
                       procedimento={procedimento}
                       index={index}
                       handleProcedureInputChange={handleProcedureInputChange}
                       handleStatusChange={handleStatusChange}
+                      handleAgendarReagendar={handleAgendarReagendar} // Passar o novo handler
                       formattedProcDate={formattedProcDate}
+                      configuredProcedures={configuredProcedures}
                     />
                   );
                 })}

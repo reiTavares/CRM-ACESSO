@@ -7,7 +7,8 @@ import React, { Suspense } from "react";
       TabsTrigger
     } from "@/components/ui/tabs";
     import {
-      Building, Users, ShieldCheck, Stethoscope, CreditCard, MessageSquare, Webhook, Loader2
+      Building, Users, ShieldCheck, Stethoscope, CreditCard, MessageSquare, Webhook, Loader2,
+      ClipboardList // Ícone para Procedimentos
     } from "lucide-react";
 
     // Importar o componente principal da API WhatsApp diretamente
@@ -19,6 +20,8 @@ import React, { Suspense } from "react";
     const UsuariosSettings = React.lazy(() => import('@/components/configuracoes/UsuariosSettings'));
     const ConveniosSettings = React.lazy(() => import('@/components/configuracoes/ConveniosSettings'));
     const MarketingSettings = React.lazy(() => import('@/components/configuracoes/MarketingSettings'));
+    // Importar o novo componente de procedimentos
+    const ProcedimentosSettings = React.lazy(() => import('@/components/configuracoes/ProcedimentosSettings'));
 
     // Componente de Fallback para o Suspense
     const SettingsLoadingFallback = () => (
@@ -36,10 +39,12 @@ import React, { Suspense } from "react";
 
             <Tabs defaultValue="whatsapp_api" className="space-y-4">
               {/* Lista de Abas */}
-              <TabsList className="flex flex-wrap h-auto justify-start">
+              <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:flex lg:flex-wrap h-auto justify-start">
                 <TabsTrigger value="whatsapp_api" className="flex items-center gap-2"><Webhook className="h-4 w-4" /><span>WhatsApp API</span></TabsTrigger>
                 <TabsTrigger value="hospitais" className="flex items-center gap-2"><Building className="h-4 w-4" /><span>Hospitais</span></TabsTrigger>
                 <TabsTrigger value="medicos" className="flex items-center gap-2"><Stethoscope className="h-4 w-4" /><span>Médicos</span></TabsTrigger>
+                {/* Adicionar Trigger para Procedimentos */}
+                <TabsTrigger value="procedimentos" className="flex items-center gap-2"><ClipboardList className="h-4 w-4" /><span>Procedimentos</span></TabsTrigger>
                 <TabsTrigger value="usuarios" className="flex items-center gap-2"><Users className="h-4 w-4" /><span>Usuários</span></TabsTrigger>
                 <TabsTrigger value="convenios" className="flex items-center gap-2"><CreditCard className="h-4 w-4" /><span>Convênios</span></TabsTrigger>
                 <TabsTrigger value="marketing" className="flex items-center gap-2"><MessageSquare className="h-4 w-4" /><span>Marketing</span></TabsTrigger>
@@ -47,7 +52,6 @@ import React, { Suspense } from "react";
 
               {/* Conteúdo das Abas */}
               <TabsContent value="whatsapp_api" className="mt-0">
-                {/* Renderiza o componente da API diretamente */}
                 <WhatsAppApiConfig />
               </TabsContent>
 
@@ -58,6 +62,10 @@ import React, { Suspense } from "react";
                   </TabsContent>
                   <TabsContent value="medicos" className="mt-0">
                       <MedicosSettings />
+                  </TabsContent>
+                  {/* Adicionar Content para Procedimentos */}
+                  <TabsContent value="procedimentos" className="mt-0">
+                      <ProcedimentosSettings />
                   </TabsContent>
                   <TabsContent value="usuarios" className="mt-0">
                       <UsuariosSettings />
