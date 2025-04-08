@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
     import { Button } from "@/components/ui/button";
     import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-    import { PhoneCall, Save, MessageCircle, Loader2, X } from "lucide-react";
+    import { PhoneCall, Save, MessageCircle, Loader2, X, StickyNote, History } from "lucide-react"; // Adicionar ícones
     import { PacienteData, PacienteDataExtended } from "@/components/pacientes/paciente-card";
     import { useToast } from "@/hooks/use-toast";
     import { cn } from "@/lib/utils";
@@ -10,6 +10,8 @@ import { useState, useEffect } from "react";
     import { ProcedimentosTab } from './modal-tabs/ProcedimentosTab';
     import { WhatsappTabWrapper } from './modal-tabs/WhatsappTabWrapper';
     import { HistoricoTab } from './modal-tabs/HistoricoTab';
+    // Importar a nova aba de Notas
+    import { NotasTab } from './modal-tabs/NotasTab';
     import { safeFormatDate } from './modal-tabs/utils';
     import { initialProcedimentos, ProcedimentoConfig } from "@/components/configuracoes/ProcedimentosSettings";
 
@@ -17,7 +19,9 @@ import { useState, useEffect } from "react";
     const hospitalsData: Record<string, string[]> = { "HODF": ["Dr. João Silva", "Dra. Ana Costa", "Dr. Pedro Martins", "Dra. Carla Dias"], "HO Londrina": ["Dr. Carlos Souza", "Dra. Beatriz Lima", "Dr. Ricardo Alves", "Dra. Fernanda Vieira"], "HO Maringa": ["Dra. Mariana Ferreira", "Dr. Gustavo Pereira", "Dra. Sofia Ribeiro", "Dr. André Mendes"], "HOA": ["Dr. Lucas Gomes", "Dra. Julia Almeida", "Dr. Matheus Barbosa", "Dra. Isabela Castro"], "": [] };
     const hospitalNames = Object.keys(hospitalsData).filter(name => name !== "");
     const sampleGestores = ["Ana Gestora", "Carlos Gestor", "Beatriz Gestora"];
-    const sampleConsultores = ["Consultor Logado", "Mariana Consultora", "Pedro Consultor"]; // Simula usuário logado
+    const sampleConsultores = ["Consultor Logado", "Mariana Consultora", "Pedro Consultor"];
+    // Simular usuário logado (pegar do contexto de auth no futuro)
+    const mockLoggedInUser = { id: "user-123", nome: "Consultor Logado Exemplo" };
     // --- Fim Mock Data ---
 
     interface PacienteDetailModalProps {
@@ -42,8 +46,20 @@ import { useState, useEffect } from "react";
 
       const availableDoctors = paciente ? (hospitalsData[paciente.hospital] || []) : [];
 
-      // --- Lógica de Defaults (Mantida) ---
-      const getInitialPacienteWithDefaults = (p: PacienteDataExtended | null): PacienteDataExtended | null => { /* ...código mantido... */ if (!p) return null; const marketingDataDefaults = { fonte: p.origem === 'Publicidade Digital' ? 'Facebook Ads' : p.origem === 'Publicidade Tradicional' ? 'Revista Local' : undefined, campanha: p.origem === 'Publicidade Digital' ? 'Campanha Catarata Junho' : undefined, conjunto: p.origem === 'Publicidade Digital' ? 'Grupo Interesse 50+' : undefined, tipoCriativo: p.origem === 'Publicidade Digital' ? 'Video Depoimento' : undefined, tituloCriativo: p.origem === 'Publicidade Digital' ? 'Volte a Enxergar Bem' : undefined, palavraChave: p.origem === 'Publicidade Digital' ? 'cirurgia catarata preço' : undefined, quemIndicou: p.origem === 'Indicação' ? 'Dr. Carlos Pereira' : undefined, dataIndicacao: p.origem === 'Indicação' ? new Date(2024, 5, 10) : undefined, telefoneIndicacao: p.origem === 'Indicação' ? '(11) 98877-6655' : undefined, nomeEvento: p.origem === 'Evento' ? 'Feira da Saúde Local' : undefined, dataEvento: p.origem === 'Evento' ? new Date(2024, 4, 15) : undefined, descricaoEvento: p.origem === 'Evento' ? 'Participação no stand da Acesso Oftalmologia.' : undefined }; return { ...p, gestorResponsavel: p.gestorResponsavel ?? sampleGestores[Math.floor(Math.random() * sampleGestores.length)], consultorResponsavel: p.consultorResponsavel ?? sampleConsultores[0], marketingData: { ...marketingDataDefaults, ...(p.marketingData || {}), }, historico: p.historico || [], procedimentos: p.procedimentos || [], }; };
+      // --- Lógica de Defaults (Adicionar inicialização de notas) ---
+      const getInitialPacienteWithDefaults = (p: PacienteDataExtended | null): PacienteDataExtended | null => {
+          if (!p) return null;
+          const marketingDataDefaults = { /* ... */ };
+          return {
+              ...p,
+              gestorResponsavel: p.gestorResponsavel ?? sampleGestores[Math.floor(Math.random() * sampleGestores.length)],
+              consultorResponsavel: p.consultorResponsavel ?? sampleConsultores[0],
+              marketingData: { /* ... */ ...(p.marketingData || {}), },
+              historico: p.historico || [],
+              procedimentos: p.procedimentos || [],
+              notas: p.notas || [], // Inicializa notas como array vazio se não existir
+          };
+       };
 
       // --- Atualiza Estado Local (Mantido) ---
       useEffect(() => { /* ...código mantido... */ const pacienteComDefaults = getInitialPacienteWithDefaults(initialPaciente ? JSON.parse(JSON.stringify(initialPaciente)) : null); setPaciente(pacienteComDefaults); if (open) { setActiveTab("contato"); setIsSaving(false); } if (pacienteComDefaults && (!hospitalsData[pacienteComDefaults.hospital] || !hospitalsData[pacienteComDefaults.hospital]?.includes(pacienteComDefaults.medico))) { const firstDoctor = hospitalsData[pacienteComDefaults.hospital]?.[0] || ""; setPaciente(current => current ? ({ ...current, medico: firstDoctor }) : null); } }, [initialPaciente, open]);
@@ -59,72 +75,36 @@ import { useState, useEffect } from "react";
       const handleCall = () => { toast({ title: "Ligar", description: "Pendente." }); };
       const addProcedimento = () => { toast({ title: "Adicionar Procedimento", description: "Pendente." }); };
       const handleSaveChanges = async () => { /* ...código mantido... */ if (!paciente) return; setIsSaving(true); console.log("Saving:", paciente); try { await onSave(paciente); toast({ title: "Alterações Salvas" }); onOpenChange(false); } catch (error: any) { console.error("Erro ao salvar:", error); toast({ variant: "destructive", title: "Erro ao Salvar", description: error.message || '' }); } finally { setIsSaving(false); } };
+      const handleStatusChange = (procedimentoId: string, status: "ganho" | "perdido") => { /* ...código mantido... */ const procDesc = paciente?.procedimentos.find(p => p.id === procedimentoId)?.procedimento || 'Procedimento'; toast({ title: `Marcar como ${status}`, description: `"${procDesc}" - Funcionalidade pendente.` }); };
+      const handleAgendarReagendar = (procedimentoId: string) => { /* ...código mantido... */ setPaciente(prev => { if (!prev) return null; let newStatus: string = 'pendente'; let historicoMsg = ''; let historicoTipo = 'Reagendamento'; let toastTitle = 'Reagendamento'; let toastDesc = ''; const updatedProcedimentos = prev.procedimentos.map(p => { if (p.id === procedimentoId) { const procDesc = p.procedimento || 'Procedimento'; if (p.status === 'pendente') { newStatus = 'Agendado'; historicoMsg = `Procedimento "${procDesc}" agendado.`; historicoTipo = 'Agendamento'; toastTitle = 'Procedimento Agendado'; toastDesc = `"${procDesc}" foi marcado como agendado.`; } else if (p.status === 'Agendado') { newStatus = 'pendente'; historicoMsg = `Procedimento "${procDesc}" retornado para pendente (reagendamento).`; historicoTipo = 'Reagendamento'; toastTitle = 'Procedimento Pendente'; toastDesc = `"${procDesc}" voltou para pendente para reagendamento.`; } else { return p; } return { ...p, status: newStatus }; } return p; }); if (historicoMsg) { const histEntry = { id: `hist-${Date.now()}`, data: new Date(), tipo: historicoTipo, descricao: historicoMsg, usuario: mockLoggedInUser.nome }; toast({ title: toastTitle, description: toastDesc }); return { ...prev, procedimentos: updatedProcedimentos, historico: [histEntry, ...prev.historico] }; } return prev; }); };
 
-      // Handler para Ganho/Perdido (mantido como placeholder)
-      const handleStatusChange = (procedimentoId: string, status: "ganho" | "perdido") => {
-          // TODO: Implementar lógica real de API e atualização de estado
-          const procDesc = paciente?.procedimentos.find(p => p.id === procedimentoId)?.procedimento || 'Procedimento';
-          toast({ title: `Marcar como ${status}`, description: `"${procDesc}" - Funcionalidade pendente.` });
-          // Exemplo de como seria a atualização de estado (após sucesso da API):
-          // setPaciente(prev => {
-          //   if (!prev) return null;
-          //   const updatedProcedimentos = prev.procedimentos.map(p =>
-          //     p.id === procedimentoId ? { ...p, status: status } : p
-          //   );
-          //   const histEntry = { id: `hist-${Date.now()}`, data: new Date(), tipo: "Status", descricao: `Procedimento "${procDesc}" marcado como ${status}.`, usuario: "Consultor Logado" };
-          //   return { ...prev, procedimentos: updatedProcedimentos, historico: [histEntry, ...prev.historico] };
-          // });
-      };
-
-      // NOVO Handler para Agendar/Reagendar
-      const handleAgendarReagendar = (procedimentoId: string) => {
+      // **NOVO Handler para Adicionar Nota**
+      const handleAddNota = (texto: string) => {
           setPaciente(prev => {
               if (!prev) return null;
 
-              let newStatus: string = 'pendente'; // Default para reagendar
-              let historicoMsg = '';
-              let historicoTipo = 'Reagendamento';
-              let toastTitle = 'Reagendamento';
-              let toastDesc = '';
+              const newNota = {
+                  id: `nota-${Date.now()}`,
+                  data: new Date(), // Data atual
+                  texto: texto,
+                  usuario: mockLoggedInUser.nome // Usuário logado (simulado)
+              };
 
-              const updatedProcedimentos = prev.procedimentos.map(p => {
-                  if (p.id === procedimentoId) {
-                      const procDesc = p.procedimento || 'Procedimento';
-                      if (p.status === 'pendente') {
-                          newStatus = 'Agendado';
-                          historicoMsg = `Procedimento "${procDesc}" agendado.`;
-                          historicoTipo = 'Agendamento';
-                          toastTitle = 'Procedimento Agendado';
-                          toastDesc = `"${procDesc}" foi marcado como agendado.`;
-                      } else if (p.status === 'Agendado') {
-                          newStatus = 'pendente'; // Volta para pendente
-                          historicoMsg = `Procedimento "${procDesc}" retornado para pendente (reagendamento).`;
-                          historicoTipo = 'Reagendamento';
-                          toastTitle = 'Procedimento Pendente';
-                          toastDesc = `"${procDesc}" voltou para pendente para reagendamento.`;
-                      } else {
-                          // Não faz nada se já for ganho/perdido
-                          return p;
-                      }
-                      return { ...p, status: newStatus };
-                  }
-                  return p;
-              });
+              const newHistoricoEntry = {
+                  id: `hist-${Date.now()}-nota`,
+                  data: new Date(),
+                  tipo: "Nota", // Novo tipo de histórico
+                  descricao: `Nota adicionada: "${texto.substring(0, 50)}${texto.length > 50 ? '...' : ''}"`,
+                  usuario: mockLoggedInUser.nome
+              };
 
-              // Só adiciona histórico e mostra toast se houve mudança
-              if (historicoMsg) {
-                  const histEntry = {
-                      id: `hist-${Date.now()}`,
-                      data: new Date(),
-                      tipo: historicoTipo,
-                      descricao: historicoMsg,
-                      usuario: sampleConsultores[0] // Usar usuário logado real
-                  };
-                  toast({ title: toastTitle, description: toastDesc });
-                  return { ...prev, procedimentos: updatedProcedimentos, historico: [histEntry, ...prev.historico] };
-              }
+              toast({ title: "Nota Adicionada" });
 
-              return prev; // Retorna estado anterior se não houve mudança
+              return {
+                  ...prev,
+                  notas: [newNota, ...(prev.notas || [])], // Adiciona nova nota no início
+                  historico: [newHistoricoEntry, ...(prev.historico || [])] // Adiciona histórico no início
+              };
           });
       };
       // --- Fim Handlers de Ação ---
@@ -150,12 +130,15 @@ import { useState, useEffect } from "react";
               </div>
             </DialogHeader>
 
+            {/* Ajustar grid para 5 colunas */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0 overflow-hidden px-6 pb-6">
-              <TabsList className="grid grid-cols-4 mb-4 shrink-0">
+              <TabsList className="grid grid-cols-5 mb-4 shrink-0"> {/* Alterado para grid-cols-5 */}
                 <TabsTrigger value="contato">Contato</TabsTrigger>
                 <TabsTrigger value="procedimentos">Procedimentos</TabsTrigger>
                 <TabsTrigger value="whatsapp"><MessageCircle className="h-4 w-4 mr-1"/> WhatsApp</TabsTrigger>
-                <TabsTrigger value="historico">Histórico</TabsTrigger>
+                {/* Nova Aba Notas */}
+                <TabsTrigger value="notas"><StickyNote className="h-4 w-4 mr-1"/> Notas</TabsTrigger>
+                <TabsTrigger value="historico"><History className="h-4 w-4 mr-1"/> Histórico</TabsTrigger>
               </TabsList>
 
               <div className="flex-1 overflow-y-auto mt-0">
@@ -164,18 +147,19 @@ import { useState, useEffect } from "react";
                   </TabsContent>
 
                   <TabsContent value="procedimentos" className="mt-0 space-y-4 focus-visible:ring-0">
-                    <ProcedimentosTab
-                      paciente={paciente}
-                      handleProcedureInputChange={handleProcedureInputChange}
-                      handleStatusChange={handleStatusChange} // Para Ganho/Perdido
-                      handleAgendarReagendar={handleAgendarReagendar} // Passa o novo handler
-                      addProcedimento={addProcedimento}
-                      configuredProcedures={configuredProcedures}
-                    />
+                    <ProcedimentosTab paciente={paciente} handleProcedureInputChange={handleProcedureInputChange} handleStatusChange={handleStatusChange} handleAgendarReagendar={handleAgendarReagendar} addProcedimento={addProcedimento} configuredProcedures={configuredProcedures} />
                   </TabsContent>
 
                   <TabsContent value="whatsapp" className="mt-0 flex-1 flex flex-col min-h-0 focus-visible:ring-0">
                      <WhatsappTabWrapper paciente={paciente} isActiveTab={activeTab === 'whatsapp'} />
+                  </TabsContent>
+
+                  {/* Conteúdo da Aba Notas */}
+                  <TabsContent value="notas" className="mt-0 h-full focus-visible:ring-0"> {/* Adicionado h-full */}
+                      <NotasTab
+                          paciente={paciente}
+                          onAddNota={handleAddNota}
+                      />
                   </TabsContent>
 
                   <TabsContent value="historico" className="mt-0 space-y-4 focus-visible:ring-0">
